@@ -1,7 +1,7 @@
 'use client'
 
-import { supabase } from '@/lib/supabase'
-import { useAuth } from '@/components/AuthProvider'
+import { supabase } from '../lib/supabase'
+import { useAuth } from '../components/AuthProvider'
 
 export default function Home() {
   const { user, loading } = useAuth()
