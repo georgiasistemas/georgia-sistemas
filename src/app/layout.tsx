@@ -1,11 +1,18 @@
-export default function RootLayout({
-  children,
-}: {
-  children: React.ReactNode;
-}) {
+import { AuthProvider } from '@/components/AuthProvider'
+
+export const metadata = {
+  title: "Georgia Sistemas",
+  description: "Sistema SaaS de Delivery White Label"
+};
+
+export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="pt-BR">
-      <body>{children}</body>
+      <body>
+        <AuthProvider>
+          {children}
+        </AuthProvider>
+      </body>
     </html>
-  );
+  )
 }
