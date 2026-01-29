@@ -1,7 +1,7 @@
 'use client'
 
 import { supabase } from '@/lib/supabase'
-import { AuthProvider } from '@/components/AuthProvider'
+import { useAuth } from '@/components/AuthProvider'
 
 export default function Home() {
   const { user, loading } = useAuth()
@@ -12,6 +12,7 @@ export default function Home() {
     return (
       <main style={{ padding: 20 }}>
         <h1>Georgia Sistemas</h1>
+
         <button
           onClick={() =>
             supabase.auth.signInWithPassword({
@@ -29,6 +30,7 @@ export default function Home() {
   return (
     <main style={{ padding: 20 }}>
       <h1>Bem-vindo</h1>
+
       <p>Usuário logado:</p>
       <pre>{user.email}</pre>
 
