@@ -7,9 +7,13 @@
     "start": "next start"
   },
   "dependencies": {
+    "@supabase/supabase-js": "^2.39.7",
     "next": "14.0.4",
     "react": "18.2.0",
-    "react-dom": "18.2.0",
-    "@supabase/supabase-js": "^2.39.7"
+    "react-dom": "18.2.0"
+  },
+  "devDependencies": {
+    "@types/react": "19.2.10",
+    "typescript": "5.9.3"
   }
 }
