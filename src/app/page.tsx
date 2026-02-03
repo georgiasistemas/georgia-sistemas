@@ -2,9 +2,19 @@
 
 import { supabase } from '@/lib/supabase'
 import { useAuth } from '@/components/AuthProvider'
+import { useRouter } from 'next/navigation'
+import { useEffect } from 'react'
 
 export default function Home() {
   const { user, loading } = useAuth()
+  const router = useRouter()
+
+  // 🔁 se já estiver logado, vai direto pro dashboard
+  useEffect(() => {
+    if (user) {
+      router.push('/dashboard')
+    }
+  }, [user, router])
 
   if (loading) {
     return <p>Carregando...</p>
@@ -33,10 +43,6 @@ export default function Home() {
     )
   }
 
-  return (
-    <main style={{ padding: 20 }}>
-      <h2>Você já está logado</h2>
-      <p>{user.email}</p>
-    </main>
-  )
+  // enquanto redireciona
+  return <p>Redirecionando...</p>
 }
