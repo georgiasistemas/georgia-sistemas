@@ -1,31 +1,24 @@
 'use client'
 
 import { useAuth } from '@/components/AuthProvider'
-import { useEffect } from 'react'
-import { useRouter } from 'next/navigation'
 
-export default function Dashboard() {
-  const { user, loading, logout } = useAuth()
-  const router = useRouter()
+export default function DashboardPage() {
+  const { user, loading } = useAuth()
 
-  useEffect(() => {
-    if (!loading && !user) {
-      router.replace('/')
-    }
-  }, [user, loading, router])
-
-  if (loading) return <p>Carregando...</p>
-
-  if (!user) return null
+  if (loading) {
+    return <p>Carregando dashboard...</p>
+  }
 
   return (
-    <main style={{ padding: 20 }}>
+    <div>
       <h1>Dashboard</h1>
+      <p>Bem-vindo ao sistema Georgia Sistemas.</p>
 
-      <p>Usuário logado:</p>
-      <pre>{user.email}</pre>
-
-      <button onClick={logout}>Sair</button>
-    </main>
+      {user && (
+        <p style={{ marginTop: 12 }}>
+          Usuário logado: <strong>{user.email}</strong>
+        </p>
+      )}
+    </div>
   )
 }
