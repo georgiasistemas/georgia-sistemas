@@ -1,50 +1,31 @@
 'use client'
 
-import { supabase } from '@/lib/supabase'
 import { useAuth } from '@/components/AuthProvider'
+import { useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 
-export default function Home() {
+export default function Dashboard() {
   const { user, loading, logout } = useAuth()
   const router = useRouter()
 
-  if (loading) return null
+  useEffect(() => {
+    if (!loading && !user) {
+      router.replace('/')
+    }
+  }, [user, loading, router])
 
-  if (!user) {
-    return (
-      <main style={{ padding: 20 }}>
-        <h1>Georgia Sistemas</h1>
+  if (loading) return <p>Carregando...</p>
 
-        <button
-          onClick={() =>
-            supabase.auth.signInWithPassword({
-              email: 'lojista@exemplo.com',
-              password: '12345678',
-            })
-          }
-        >
-          Entrar como lojista
-        </button>
-      </main>
-    )
-  }
+  if (!user) return null
 
   return (
     <main style={{ padding: 20 }}>
-      <h1>Georgia Sistemas</h1>
+      <h1>Dashboard</h1>
 
       <p>Usuário logado:</p>
       <pre>{user.email}</pre>
 
-      <div style={{ display: 'flex', gap: 12 }}>
-        <button onClick={() => router.push('/dashboard')}>
-          Ir para Dashboard
-        </button>
-
-        <button onClick={logout}>
-          Sair
-        </button>
-      </div>
+      <button onClick={logout}>Sair</button>
     </main>
   )
 }
