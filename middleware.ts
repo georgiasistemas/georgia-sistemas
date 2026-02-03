@@ -18,26 +18,24 @@ export async function middleware(req: NextRequest) {
         },
         remove(name: string, options: any) {
           res.cookies.set({ name, value: '', ...options })
-        },
-      },
+        }
+      }
     }
   )
 
   const {
-    data: { session },
-  } = await supabase.auth.getSession()
+    data: { user }
+  } = await supabase.auth.getUser()
 
-  const isDashboard = req.nextUrl.pathname.startsWith('/dashboard')
-
-  if (isDashboard && !session) {
-    const redirectUrl = req.nextUrl.clone()
-    redirectUrl.pathname = '/'
-    return NextResponse.redirect(redirectUrl)
+  // 🚫 Não logado tentando acessar dashboard
+  if (!user && req.nextUrl.pathname.startsWith('/dashboard')) {
+    const loginUrl = new URL('/', req.url)
+    return NextResponse.redirect(loginUrl)
   }
 
   return res
 }
 
 export const config = {
-  matcher: ['/dashboard/:path*'],
+  matcher: ['/dashboard/:path*']
 }
