@@ -1,5 +1,4 @@
-import { NextResponse } from 'next/server'
-import type { NextRequest } from 'next/server'
+import { NextResponse, type NextRequest } from 'next/server'
 import { createServerClient } from '@supabase/ssr'
 
 export async function middleware(req: NextRequest) {
@@ -18,24 +17,23 @@ export async function middleware(req: NextRequest) {
         },
         remove(name: string, options: any) {
           res.cookies.set({ name, value: '', ...options })
-        }
-      }
+        },
+      },
     }
   )
 
   const {
-    data: { user }
+    data: { user },
   } = await supabase.auth.getUser()
 
-  // 🚫 Não logado tentando acessar dashboard
+  // 🔒 Bloqueia acesso ao dashboard sem login
   if (!user && req.nextUrl.pathname.startsWith('/dashboard')) {
-    const loginUrl = new URL('/', req.url)
-    return NextResponse.redirect(loginUrl)
+    return NextResponse.redirect(new URL('/', req.url))
   }
 
   return res
 }
 
 export const config = {
-  matcher: ['/dashboard/:path*']
+  matcher: ['/dashboard/:path*'],
 }
