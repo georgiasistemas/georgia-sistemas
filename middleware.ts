@@ -1,7 +1,10 @@
-import { NextResponse, type NextRequest } from 'next/server'
+import { NextResponse } from 'next/server'
+import type { NextRequest } from 'next/server'
 import { createServerClient } from '@supabase/ssr'
 
 export async function middleware(req: NextRequest) {
+  console.log('🔥 MIDDLEWARE RODANDO:', req.nextUrl.pathname)
+
   const res = NextResponse.next()
 
   const supabase = createServerClient(
@@ -26,7 +29,7 @@ export async function middleware(req: NextRequest) {
     data: { user },
   } = await supabase.auth.getUser()
 
-  // 🔒 Bloqueia acesso ao dashboard sem login
+  // 🔒 Bloqueia acesso ao dashboard se não estiver logado
   if (!user && req.nextUrl.pathname.startsWith('/dashboard')) {
     return NextResponse.redirect(new URL('/', req.url))
   }
@@ -34,6 +37,7 @@ export async function middleware(req: NextRequest) {
   return res
 }
 
+// 🔍 Aplica o middleware apenas no dashboard
 export const config = {
   matcher: ['/dashboard/:path*'],
 }
