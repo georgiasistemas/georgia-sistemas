@@ -1,28 +1,14 @@
 'use client'
 
-import { useEffect } from 'react'
-import { useRouter } from 'next/navigation'
-import { supabase } from '@/lib/supabase'
 import { useAuth } from '@/components/AuthProvider'
 
 export default function DashboardPage() {
-  const { user, loading } = useAuth()
-  const router = useRouter()
+  const { user, loading, logout } = useAuth()
 
-  // Se não tiver usuário, sai imediatamente
-  useEffect(() => {
-    if (!loading && !user) {
-      router.replace('/')
-    }
-  }, [user, loading, router])
+  if (loading) return null
 
-  if (loading) return <p>Carregando...</p>
-
-  if (!user) return null // evita flicker
-
-  async function handleLogout() {
-    await supabase.auth.signOut()
-    router.replace('/')
+  if (!user) {
+    return null
   }
 
   return (
@@ -32,7 +18,7 @@ export default function DashboardPage() {
       <p>Usuário logado:</p>
       <pre>{user.email}</pre>
 
-      <button onClick={handleLogout}>
+      <button onClick={logout}>
         Sair
       </button>
     </main>

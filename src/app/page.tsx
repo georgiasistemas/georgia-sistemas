@@ -1,28 +1,18 @@
 'use client'
 
-import { useEffect } from 'react'
-import { useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
 import { useAuth } from '@/components/AuthProvider'
 
 export default function Home() {
   const { user, loading } = useAuth()
-  const router = useRouter()
 
-  useEffect(() => {
-    if (!loading && user) {
-      router.replace('/dashboard')
-    }
-  }, [user, loading, router])
-
-  if (loading) {
-    return <p>Carregando...</p>
-  }
+  if (loading) return null // 🔥 elimina o piscar
 
   if (!user) {
     return (
       <main style={{ padding: 20 }}>
         <h1>Georgia Sistemas</h1>
+
         <button
           onClick={() =>
             supabase.auth.signInWithPassword({
@@ -37,5 +27,10 @@ export default function Home() {
     )
   }
 
-  return null
+  return (
+    <main style={{ padding: 20 }}>
+      <h1>Você já está logado</h1>
+      <p>{user.email}</p>
+    </main>
+  )
 }

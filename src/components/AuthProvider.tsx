@@ -1,23 +1,25 @@
 'use client'
 
 import { createContext, useContext, useEffect, useState } from 'react'
-import type { User } from '@supabase/supabase-js'
 import { supabase } from '@/lib/supabase'
+import { useRouter } from 'next/navigation'
 
 type AuthContextType = {
-  user: User | null
+  user: any
   loading: boolean
+  logout: () => Promise<void>
 }
 
-const AuthContext = createContext<AuthContextType | undefined>(undefined)
+const AuthContext = createContext<AuthContextType | null>(null)
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
-  const [user, setUser] = useState<User | null>(null)
+  const [user, setUser] = useState<any>(null)
   const [loading, setLoading] = useState(true)
+  const router = useRouter()
 
   useEffect(() => {
     supabase.auth.getUser().then(({ data }) => {
-      setUser(data.user ?? null)
+      setUser(data.user)
       setLoading(false)
     })
 
@@ -32,19 +34,23 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   }, [])
 
+  async function logout() {
+    setLoading(true)
+    await supabase.auth.signOut()
+    setUser(null)
+    setLoading(false)
+    router.replace('/')
+  }
+
   return (
-    <AuthContext.Provider value={{ user, loading }}>
+    <AuthContext.Provider value={{ user, loading, logout }}>
       {children}
     </AuthContext.Provider>
   )
 }
 
 export function useAuth() {
-  const context = useContext(AuthContext)
-
-  if (!context) {
-    throw new Error('useAuth deve ser usado dentro de AuthProvider')
-  }
-
-  return context
+  const ctx = useContext(AuthContext)
+  if (!ctx) throw new Error('useAuth must be used inside AuthProvider')
+  return ctx
 }
