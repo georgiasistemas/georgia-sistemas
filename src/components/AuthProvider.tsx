@@ -2,7 +2,6 @@
 
 import { createContext, useContext, useEffect, useState } from 'react'
 import { supabase } from '@/lib/supabase'
-import { useRouter } from 'next/navigation'
 
 type AuthContextType = {
   user: any
@@ -15,14 +14,15 @@ const AuthContext = createContext<AuthContextType | null>(null)
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<any>(null)
   const [loading, setLoading] = useState(true)
-  const router = useRouter()
 
   useEffect(() => {
+    // Carrega sessão inicial
     supabase.auth.getUser().then(({ data }) => {
       setUser(data.user)
       setLoading(false)
     })
 
+    // Escuta mudanças de auth
     const { data: listener } = supabase.auth.onAuthStateChange(
       (_event, session) => {
         setUser(session?.user ?? null)
@@ -34,12 +34,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   }, [])
 
-  async function logout() {
-    setLoading(true)
+  // 🔴 LOGOUT CORRETO (limpa cookie no server)
+  const logout = async () => {
     await supabase.auth.signOut()
-    setUser(null)
-    setLoading(false)
-    router.replace('/')
+
+    // força reload completo para limpar cookies HTTP
+    window.location.href = '/'
   }
 
   return (
@@ -50,7 +50,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 }
 
 export function useAuth() {
-  const ctx = useContext(AuthContext)
-  if (!ctx) throw new Error('useAuth must be used inside AuthProvider')
-  return ctx
+  const context = useContext(AuthContext)
+  if (!context) {
+    throw new Error('useAuth must be used within an AuthProvider')
+  }
+  return context
 }
