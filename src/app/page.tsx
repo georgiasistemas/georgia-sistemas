@@ -1,37 +1,42 @@
 'use client'
 
 import { supabase } from '@/lib/supabase'
-import { useRouter } from 'next/navigation'
-import { useState } from 'react'
+import { useAuth } from '@/components/AuthProvider'
 
 export default function Home() {
-  const router = useRouter()
-  const [loading, setLoading] = useState(false)
+  const { user, loading } = useAuth()
 
-  async function handleLogin() {
-    setLoading(true)
+  if (loading) {
+    return <p>Carregando...</p>
+  }
 
-    const { error } = await supabase.auth.signInWithPassword({
-      email: 'lojista@exemplo.com',
-      password: '12345678',
-    })
+  if (!user) {
+    return (
+      <main style={{ padding: 20 }}>
+        <h1>Georgia Sistemas</h1>
 
-    setLoading(false)
+        <button
+          onClick={async () => {
+            const { error } = await supabase.auth.signInWithPassword({
+              email: 'lojista@exemplo.com',
+              password: '12345678'
+            })
 
-    if (!error) {
-      router.push('/dashboard')
-    } else {
-      alert('Erro ao logar')
-    }
+            if (error) {
+              alert(error.message)
+            }
+          }}
+        >
+          Entrar como lojista
+        </button>
+      </main>
+    )
   }
 
   return (
     <main style={{ padding: 20 }}>
-      <h1>Georgia Sistemas</h1>
-
-      <button onClick={handleLogin} disabled={loading}>
-        {loading ? 'Entrando...' : 'Entrar como lojista'}
-      </button>
+      <h2>Você já está logado</h2>
+      <p>{user.email}</p>
     </main>
   )
 }
