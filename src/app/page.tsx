@@ -9,40 +9,35 @@ export default function Home() {
   const { user, loading } = useAuth()
   const router = useRouter()
 
-  // 🔁 se já estiver logado, vai direto pro dashboard
   useEffect(() => {
-    if (user) {
-      router.push('/dashboard')
+    if (!loading && user) {
+      router.replace('/dashboard') // ⬅️ replace é OBRIGATÓRIO
     }
-  }, [user, router])
+  }, [user, loading, router])
 
-  if (loading) {
-    return <p>Carregando...</p>
+  if (loading || user) {
+    return <p>Redirecionando...</p>
   }
 
-  if (!user) {
-    return (
-      <main style={{ padding: 20 }}>
-        <h1>Georgia Sistemas</h1>
+  return (
+    <main style={{ padding: 20 }}>
+      <h1>Georgia Sistemas</h1>
 
-        <button
-          onClick={async () => {
-            const { error } = await supabase.auth.signInWithPassword({
-              email: 'lojista@exemplo.com',
-              password: '12345678'
-            })
+      <button
+        onClick={async () => {
+          const { error } = await supabase.auth.signInWithPassword({
+            email: 'lojista@exemplo.com',
+            password: '12345678',
+          })
 
-            if (error) {
-              alert(error.message)
-            }
-          }}
-        >
-          Entrar como lojista
-        </button>
-      </main>
-    )
-  }
-
-  // enquanto redireciona
-  return <p>Redirecionando...</p>
+          if (error) {
+            alert(error.message)
+          }
+        }}
+      >
+        Entrar como lojista
+      </button>
+    </main>
+  )
 }
+
