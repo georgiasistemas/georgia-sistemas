@@ -11,7 +11,7 @@ export default function Home() {
 
   useEffect(() => {
     if (!loading && user) {
-      router.replace('/dashboard') // ⬅️ replace é OBRIGATÓRIO
+      router.replace('/dashboard')
     }
   }, [user, loading, router])
 
@@ -30,9 +30,7 @@ export default function Home() {
             password: '12345678',
           })
 
-          if (error) {
-            alert(error.message)
-          }
+          if (error) alert(error.message)
         }}
       >
         Entrar como lojista
@@ -40,4 +38,3 @@ export default function Home() {
     </main>
   )
 }
-
