@@ -1,11 +1,11 @@
 'use client'
 
-import { createContext } from 'react'
+import { createContext, useContext } from 'react'
 import type { User } from '@supabase/supabase-js'
 
 export type Profile = {
   id: string
-  role: 'admin' | 'owner' | 'lojista'
+  role: string
   tenant_id: string | null
 }
 
@@ -16,9 +16,16 @@ export type AuthContextType = {
   signOut: () => Promise<void>
 }
 
-export const AuthContext = createContext<AuthContextType>({
-  user: null,
-  profile: null,
-  loading: true,
-  signOut: async () => {},
-})
+export const AuthContext = createContext<AuthContextType | undefined>(
+  undefined
+)
+
+export function useAuth() {
+  const context = useContext(AuthContext)
+
+  if (!context) {
+    throw new Error('useAuth deve ser usado dentro do AuthProvider')
+  }
+
+  return context
+}
