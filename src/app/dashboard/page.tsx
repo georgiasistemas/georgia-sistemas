@@ -1,30 +1,34 @@
 'use client'
 
-import { useAuth } from '@/contexts/AuthProvider'
-import { useRouter } from 'next/navigation'
 import { useEffect } from 'react'
+import { useRouter } from 'next/navigation'
+import { useAuth } from '@/contexts/AuthProvider'
 
 export default function DashboardPage() {
-  const { user, loading, signOut } = useAuth()
+  const { user, loading, logout } = useAuth()
   const router = useRouter()
 
   useEffect(() => {
     if (!loading && !user) {
       router.replace('/')
     }
-  }, [user, loading, router])
+  }, [loading, user, router])
 
-  if (loading || !user) {
+  if (loading) {
     return <p>Carregando...</p>
   }
 
-  return (
-    <div style={{ padding: 20 }}>
-      <h1>Dashboard</h1>
-      <p>Usuário logado:</p>
-      <pre>{user.email}</pre>
+  if (!user) {
+    return null
+  }
 
-      <button onClick={signOut}>Sair</button>
+  return (
+    <div>
+      <h1>Dashboard</h1>
+      <p>Bem-vindo ao sistema Georgia Sistemas.</p>
+
+      <button onClick={logout}>Sair</button>
     </div>
   )
 }
+
