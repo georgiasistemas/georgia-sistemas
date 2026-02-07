@@ -2,36 +2,46 @@
 
 import { useEffect } from 'react'
 import { useRouter } from 'next/navigation'
-import { useAuth } from '@/contexts/AuthProvider'
+import { useAuth } from '@/contexts/AuthContext'
 
 export default function DashboardPage() {
-  const { user, loading, logout } = useAuth()
+  const { user, profile, loading } = useAuth()
   const router = useRouter()
 
+  // 🔍 TESTE 2 — INSPEÇÃO NO CONSOLE
   console.log('USER:', user)
-console.log('PROFILE:', profile)
+  console.log('PROFILE:', profile)
 
   useEffect(() => {
     if (!loading && !user) {
-      router.replace('/')
+      router.push('/')
     }
-  }, [loading, user, router])
+  }, [user, loading, router])
 
   if (loading) {
     return <p>Carregando...</p>
   }
 
   if (!user) {
-    return null
+    return <p>Redirecionando...</p>
   }
 
   return (
     <div>
       <h1>Dashboard</h1>
-      <p>Bem-vindo ao sistema Georgia Sistemas.</p>
 
-      <button onClick={logout}>Sair</button>
+      <p><strong>Email:</strong> {user.email}</p>
+
+      {profile ? (
+        <>
+          <p><strong>Role:</strong> {profile.role}</p>
+          <p><strong>Tenant ID:</strong> {profile.tenant_id}</p>
+        </>
+      ) : (
+        <p>Perfil não carregado</p>
+      )}
     </div>
   )
 }
+
 
