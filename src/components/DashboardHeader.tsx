@@ -3,7 +3,7 @@
 import { useAuth } from '@/contexts/AuthProvider'
 
 export default function DashboardHeader() {
-  const { user, logout } = useAuth()
+  const { user, signOut } = useAuth()
 
   return (
     <header
@@ -19,7 +19,7 @@ export default function DashboardHeader() {
 
       <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
         <span>{user?.email}</span>
-        <button onClick={logout}>Sair</button>
+        <button onClick={signOut}>Sair</button>
       </div>
     </header>
   )
