@@ -3,24 +3,24 @@
 import { useAuth } from '@/contexts/AuthProvider'
 
 export default function DashboardHeader() {
-  const { user, signOut } = useAuth()
+  const { user, logout } = useAuth()
 
   return (
     <header
       style={{
-        padding: '12px 24px',
-        borderBottom: '1px solid #eee',
         display: 'flex',
         justifyContent: 'space-between',
-        alignItems: 'center',
+        padding: '1rem',
+        borderBottom: '1px solid #ccc',
       }}
     >
-      <span>Área Administrativa</span>
+      <strong>Georgia Sistemas</strong>
 
-      <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
-        <span>{user?.email}</span>
-        <button onClick={signOut}>Sair</button>
-      </div>
+      {user && (
+        <button onClick={logout}>
+          Sair
+        </button>
+      )}
     </header>
   )
 }
