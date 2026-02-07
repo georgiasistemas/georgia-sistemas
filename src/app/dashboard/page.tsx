@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation'
 import { useEffect } from 'react'
 
 export default function DashboardPage() {
-  const { user, loading, logout } = useAuth()
+  const { user, loading, signOut } = useAuth()
   const router = useRouter()
 
   useEffect(() => {
@@ -24,7 +24,7 @@ export default function DashboardPage() {
       <p>Usuário logado:</p>
       <pre>{user.email}</pre>
 
-      <button onClick={logout}>Sair</button>
+      <button onClick={signOut}>Sair</button>
     </div>
   )
 }
