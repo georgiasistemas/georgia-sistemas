@@ -1,22 +1,24 @@
-import { createContext, useContext } from 'react'
+'use client'
 
-export type UserRole = 'admin' | 'owner' | 'lojista'
+import { createContext } from 'react'
+import type { User } from '@supabase/supabase-js'
 
-export interface AuthUser {
+export type Profile = {
   id: string
-  email: string
-  role: UserRole
+  role: 'admin' | 'owner' | 'lojista'
   tenant_id: string | null
 }
 
-export interface AuthContextData {
-  user: AuthUser | null
+export type AuthContextType = {
+  user: User | null
+  profile: Profile | null
   loading: boolean
-  logout: () => Promise<void>
+  signOut: () => Promise<void>
 }
 
-export const AuthContext = createContext<AuthContextData>(
-  {} as AuthContextData
-)
-
-export const useAuth = () => useContext(AuthContext)
+export const AuthContext = createContext<AuthContextType>({
+  user: null,
+  profile: null,
+  loading: true,
+  signOut: async () => {},
+})
