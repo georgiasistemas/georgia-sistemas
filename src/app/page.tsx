@@ -1,7 +1,7 @@
 'use client'
 
 import { supabase } from '@/lib/supabase'
-import { useAuth } from '@/components/AuthProvider'
+import { useAuth } from '@/contexts/AuthProvider'
 import { useRouter } from 'next/navigation'
 import { useEffect } from 'react'
 

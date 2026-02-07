@@ -1,6 +1,6 @@
 'use client'
 
-import { useAuth } from '@/components/AuthProvider'
+import { useAuth } from '@/contexts/AuthProvider'
 
 export default function DashboardHeader() {
   const { user, logout } = useAuth()

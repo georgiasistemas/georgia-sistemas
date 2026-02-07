@@ -1,4 +1,4 @@
-import { AuthProvider } from '@/components/AuthProvider'
+import { AuthProvider } from '@/contexts/AuthProvider'
 
 export const metadata = {
   title: 'Georgia Sistemas',
