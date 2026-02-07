@@ -8,6 +8,9 @@ export default function DashboardPage() {
   const { user, loading, logout } = useAuth()
   const router = useRouter()
 
+  console.log('USER:', user)
+console.log('PROFILE:', profile)
+
   useEffect(() => {
     if (!loading && !user) {
       router.replace('/')
