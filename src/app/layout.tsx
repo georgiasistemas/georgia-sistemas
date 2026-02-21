@@ -1,12 +1,13 @@
+import './globals.css'
 import { AuthProvider } from '@/contexts/AuthProvider'
 
 export const metadata = {
   title: 'Georgia Sistemas',
-  description: 'Sistema SaaS de Delivery White Label'
+  description: 'Sistema multi-tenant',
 }
 
 export default function RootLayout({
-  children
+  children,
 }: {
   children: React.ReactNode
 }) {
