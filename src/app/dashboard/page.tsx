@@ -1,5 +1,7 @@
 'use client'
 
+export const dynamic = 'force-dynamic'
+
 import { useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { useAuth } from '@/contexts/AuthContext'
@@ -8,13 +10,9 @@ export default function DashboardPage() {
   const { user, profile, loading } = useAuth()
   const router = useRouter()
 
-  // 🔍 TESTE 2 — INSPEÇÃO NO CONSOLE
-  console.log('USER:', user)
-  console.log('PROFILE:', profile)
-
   useEffect(() => {
     if (!loading && !user) {
-      router.push('/')
+      router.replace('/')
     }
   }, [user, loading, router])
 
@@ -23,14 +21,14 @@ export default function DashboardPage() {
   }
 
   if (!user) {
-    return <p>Redirecionando...</p>
+    return null
   }
 
   return (
     <div>
       <h1>Dashboard</h1>
 
-      <p><strong>Email:</strong> {user.email}</p>
+      <p><strong>Email:</strong> {user?.email}</p>
 
       {profile ? (
         <>
@@ -43,5 +41,3 @@ export default function DashboardPage() {
     </div>
   )
 }
-
-
