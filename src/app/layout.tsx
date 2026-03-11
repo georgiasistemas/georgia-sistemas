@@ -1,8 +1,9 @@
+import './globals.css'
 import { AuthProvider } from '@/contexts/AuthProvider'
 
 export const metadata = {
   title: 'Georgia Sistemas',
-  description: 'Sistema multi-tenant',
+  description: 'Sistema multi-tenant'
 }
 
 export default function RootLayout({
