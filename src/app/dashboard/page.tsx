@@ -4,10 +4,6 @@ import { useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { useAuth } from '@/contexts/AuthContext'
 
-export const dynamic = 'force-dynamic'
-export const fetchCache = 'force-no-store'
-export const revalidate = 0
-
 export default function DashboardPage() {
   const { user, profile, loading } = useAuth()
   const router = useRouter()
@@ -31,7 +27,7 @@ export default function DashboardPage() {
       <h1>Dashboard</h1>
 
       <p>
-        <strong>Email:</strong> {user.email}
+        <strong>Email:</strong> {user?.email}
       </p>
 
       {profile && (
