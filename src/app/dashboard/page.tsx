@@ -3,9 +3,10 @@
 import { useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { useAuth } from '@/contexts/AuthContext'
+import DashboardHeader from '@/components/DashboardHeader'
 
 export default function DashboardPage() {
-  const { user, profile, loading } = useAuth()
+  const { user, loading } = useAuth()
   const router = useRouter()
 
   useEffect(() => {
@@ -23,24 +24,16 @@ export default function DashboardPage() {
   }
 
   return (
-    <div style={{ padding: 40 }}>
-      <h1>Dashboard</h1>
+    <div>
+      <DashboardHeader />
 
-      <p>
-        <strong>Email:</strong> {user?.email}
-      </p>
+      <main style={{ padding: 40 }}>
+        <h1>Painel do Sistema</h1>
 
-      {profile && (
-        <>
-          <p>
-            <strong>Role:</strong> {profile.role}
-          </p>
+        <p>Bem-vindo ao Georgia Sistemas.</p>
 
-          <p>
-            <strong>Tenant:</strong> {profile.tenant_id}
-          </p>
-        </>
-      )}
+        <p>Usuário logado: {user.email}</p>
+      </main>
     </div>
   )
 }
