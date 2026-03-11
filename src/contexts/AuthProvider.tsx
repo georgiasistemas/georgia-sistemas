@@ -20,27 +20,24 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [profile, setProfile] = useState<Profile | null>(null)
   const [loading, setLoading] = useState(true)
 
-  async function loadProfile(userId: string) {
-    const { data, error } = await supabase
-      .from('profiles')
-      .select('id, role, tenant_id')
-      .eq('id', userId)
-      .single()
-
-    if (!error && data) {
-      setProfile(data)
-    }
-  }
-
   useEffect(() => {
-    async function loadUser() {
-      const { data } = await supabase.auth.getUser()
+    const loadUser = async () => {
+      const { data } = await supabase.auth.getSession()
 
-      const currentUser = data?.user ?? null
-      setUser(currentUser)
+      const sessionUser = data?.session?.user ?? null
 
-      if (currentUser) {
-        await loadProfile(currentUser.id)
+      setUser(sessionUser)
+
+      if (sessionUser) {
+        const { data: profileData } = await supabase
+          .from('profiles')
+          .select('id, role, tenant_id')
+          .eq('id', sessionUser.id)
+          .single()
+
+        if (profileData) {
+          setProfile(profileData)
+        }
       }
 
       setLoading(false)
@@ -50,11 +47,20 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     const { data: listener } = supabase.auth.onAuthStateChange(
       async (_event, session) => {
-        const currentUser = session?.user ?? null
-        setUser(currentUser)
+        const sessionUser = session?.user ?? null
 
-        if (currentUser) {
-          await loadProfile(currentUser.id)
+        setUser(sessionUser)
+
+        if (sessionUser) {
+          const { data: profileData } = await supabase
+            .from('profiles')
+            .select('id, role, tenant_id')
+            .eq('id', sessionUser.id)
+            .single()
+
+          if (profileData) {
+            setProfile(profileData)
+          }
         } else {
           setProfile(null)
         }
