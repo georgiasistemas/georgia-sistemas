@@ -25,18 +25,23 @@ export default function DashboardPage() {
   }
 
   return (
-    <div>
+    <div style={{ padding: 40 }}>
       <h1>Dashboard</h1>
 
-      <p><strong>Email:</strong> {user?.email}</p>
+      <p>
+        <strong>Email:</strong> {user.email}
+      </p>
 
-      {profile ? (
+      {profile && (
         <>
-          <p><strong>Role:</strong> {profile.role}</p>
-          <p><strong>Tenant ID:</strong> {profile.tenant_id}</p>
+          <p>
+            <strong>Role:</strong> {profile.role}
+          </p>
+
+          <p>
+            <strong>Tenant:</strong> {profile.tenant_id}
+          </p>
         </>
-      ) : (
-        <p>Perfil não carregado</p>
       )}
     </div>
   )
