@@ -3,7 +3,6 @@
 import { useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { useAuth } from '@/contexts/AuthContext'
-import DashboardHeader from '@/components/DashboardHeader'
 
 export default function DashboardPage() {
   const { user, loading } = useAuth()
@@ -15,25 +14,17 @@ export default function DashboardPage() {
     }
   }, [user, loading, router])
 
-  if (loading) {
-    return <p>Carregando...</p>
-  }
+  if (loading) return <p>Carregando...</p>
 
-  if (!user) {
-    return null
-  }
+  if (!user) return null
 
   return (
     <div>
-      <DashboardHeader />
+      <h1>Bem-vindo ao Georgia Sistemas</h1>
 
-      <main style={{ padding: 40 }}>
-        <h1>Painel do Sistema</h1>
-
-        <p>Bem-vindo ao Georgia Sistemas.</p>
-
-        <p>Usuário logado: {user.email}</p>
-      </main>
+      <p>
+        Este é o painel principal do sistema.
+      </p>
     </div>
   )
 }

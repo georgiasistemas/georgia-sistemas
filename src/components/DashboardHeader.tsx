@@ -8,18 +8,27 @@ export default function DashboardHeader() {
   return (
     <header
       style={{
+        height: '70px',
+        borderBottom: '1px solid #e5e7eb',
         display: 'flex',
+        alignItems: 'center',
         justifyContent: 'space-between',
-        padding: '20px',
-        borderBottom: '1px solid #ccc'
+        padding: '0 30px',
+        background: '#fff'
       }}
     >
-      <h2>Dashboard</h2>
+      <h3>Dashboard</h3>
 
-      <div style={{ display: 'flex', gap: '15px', alignItems: 'center' }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: '20px' }}>
         <span>{user?.email}</span>
 
-        <button onClick={signOut}>
+        <button
+          onClick={signOut}
+          style={{
+            padding: '8px 14px',
+            cursor: 'pointer'
+          }}
+        >
           Sair
         </button>
       </div>
