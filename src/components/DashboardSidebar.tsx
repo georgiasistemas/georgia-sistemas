@@ -19,7 +19,7 @@ export default function DashboardSidebar() {
           Dashboard
         </Link>
 
-        <Link href="/dashboard/produtos" style={{ color: '#fff' }}>
+        <Link href="/dashboard/products" style={{ color: '#fff' }}>
           Produtos
         </Link>
 
