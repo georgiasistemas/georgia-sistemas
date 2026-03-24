@@ -56,7 +56,6 @@ return (
 )
 }
 
-// 🔥 AQUI ESTÁ O QUE FALTAVA
 export function useAuth() {
 const context = useContext(AuthContext)
 
