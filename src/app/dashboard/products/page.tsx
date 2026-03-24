@@ -1,77 +1,72 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useEffect, useState } from 'react'
 import { supabase } from '@/lib/supabase'
-import { useAuth } from '@/contexts/AuthContext'
+import { useAuth } from '@/contexts/AuthProvider'
+
+type Product = {
+  id: string
+  name: string
+  price: number
+}
 
 export default function ProductsPage() {
-  const { profile } = useAuth()
+  const { user, profile } = useAuth()
 
-  const [products, setProducts] = useState<any[]>([])
+  const [products, setProducts] = useState<Product[]>([])
   const [name, setName] = useState('')
   const [price, setPrice] = useState('')
-  const [stock, setStock] = useState('')
 
-  async function loadProducts() {
+  // 🔄 BUSCAR PRODUTOS
+  async function fetchProducts() {
     if (!profile?.tenant_id) return
 
     const { data, error } = await supabase
       .from('products')
       .select('*')
       .eq('tenant_id', profile.tenant_id)
-      .order('created_at', { ascending: false })
 
     if (error) {
-      console.error('Erro ao carregar produtos', error)
+      console.error('Erro ao buscar produtos:', error)
     } else {
       setProducts(data || [])
     }
   }
 
   useEffect(() => {
-    loadProducts()
+    fetchProducts()
   }, [profile])
 
-  async function addProduct() {
-    if (!profile?.tenant_id) {
-      console.error('Tenant não encontrado')
+  // ➕ ADICIONAR PRODUTO
+  async function handleAddProduct() {
+    if (!name || !price || !profile?.tenant_id) {
+      alert('Preencha os campos corretamente')
       return
     }
 
-    const { data, error } = await supabase
-      .from('products')
-      .insert([
-        {
-          name: name,
-          price: Number(price),
-          stock: Number(stock),
-          tenant_id: profile.tenant_id,
-          active: true
-        }
-      ])
-      .select()
+    const { error } = await supabase.from('products').insert([
+      {
+        name,
+        price: Number(price),
+        tenant_id: profile.tenant_id,
+      },
+    ])
 
     if (error) {
-      console.error('Erro ao salvar produto', error)
-      return
+      console.error('Erro ao adicionar:', error)
+      alert('Erro ao adicionar produto')
+    } else {
+      setName('')
+      setPrice('')
+      fetchProducts()
     }
-
-    console.log('Produto criado', data)
-
-    setName('')
-    setPrice('')
-    setStock('')
-
-    loadProducts()
   }
 
   return (
     <div>
-
       <h1>Produtos</h1>
 
       <div style={{ marginBottom: 20 }}>
-
         <input
           placeholder="Nome"
           value={name}
@@ -80,48 +75,31 @@ export default function ProductsPage() {
 
         <input
           placeholder="Preço"
+          type="number"
           value={price}
           onChange={(e) => setPrice(e.target.value)}
         />
 
-        <input
-          placeholder="Estoque"
-          value={stock}
-          onChange={(e) => setStock(e.target.value)}
-        />
-
-        <button onClick={addProduct}>
-          Adicionar
-        </button>
-
+        <button onClick={handleAddProduct}>Adicionar</button>
       </div>
 
       <table border={1} cellPadding={10}>
-
         <thead>
           <tr>
             <th>Nome</th>
             <th>Preço</th>
-            <th>Estoque</th>
           </tr>
         </thead>
 
         <tbody>
-
           {products.map((product) => (
-
             <tr key={product.id}>
               <td>{product.name}</td>
               <td>{product.price}</td>
-              <td>{product.stock}</td>
             </tr>
-
           ))}
-
         </tbody>
-
       </table>
-
     </div>
   )
 }
