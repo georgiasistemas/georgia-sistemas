@@ -18,20 +18,15 @@ const [profile, setProfile] = useState<any>(null)
 const [loading, setLoading] = useState(true)
 
 useEffect(() => {
-// Pega usuário atual
 const getUser = async () => {
 const { data } = await supabase.auth.getUser()
-
-```
-  setUser(data?.user ?? null)
-
-  // (Opcional) buscar profile depois
-  setLoading(false)
+setUser(data?.user ?? null)
+setLoading(false)
 }
 
+```
 getUser()
 
-// Listener de mudanças de auth
 const { data: listener } = supabase.auth.onAuthStateChange(
   (_event, session) => {
     setUser(session?.user ?? null)
