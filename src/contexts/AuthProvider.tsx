@@ -24,7 +24,6 @@ setUser(data?.user ?? null)
 setLoading(false)
 }
 
-```
 getUser()
 
 const { data: listener } = supabase.auth.onAuthStateChange(
