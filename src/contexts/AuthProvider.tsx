@@ -1,95 +1,68 @@
 'use client'
 
-import { useEffect, useState } from 'react'
-import { createClient } from '@supabase/supabase-js'
-import { AuthContext } from './AuthContext'
+import { createContext, useContext, useEffect, useState } from 'react'
+import { supabase } from '@/lib/supabase'
 
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-)
-
-type Profile = {
-  id: string
-  role: string
-  tenant_id: string
+type AuthContextType = {
+user: any
+profile: any
+loading: boolean
+signOut: () => Promise<void>
 }
 
+const AuthContext = createContext<AuthContextType | undefined>(undefined)
+
 export function AuthProvider({ children }: { children: React.ReactNode }) {
-  const [user, setUser] = useState<any>(null)
-  const [profile, setProfile] = useState<Profile | null>(null)
-  const [loading, setLoading] = useState(true)
+const [user, setUser] = useState<any>(null)
+const [profile, setProfile] = useState<any>(null)
+const [loading, setLoading] = useState(true)
 
-  useEffect(() => {
-    const loadUser = async () => {
-      const { data } = await supabase.auth.getSession()
+useEffect(() => {
+// Pega usuário atual
+const getUser = async () => {
+const { data } = await supabase.auth.getUser()
 
-      const sessionUser = data?.session?.user ?? null
+```
+  setUser(data?.user ?? null)
 
-      setUser(sessionUser)
+  // (Opcional) buscar profile depois
+  setLoading(false)
+}
 
-      if (sessionUser) {
-        const { data: profileData } = await supabase
-          .from('profiles')
-          .select('id, role, tenant_id')
-          .eq('id', sessionUser.id)
-          .single()
+getUser()
 
-        if (profileData) {
-          setProfile(profileData)
-        }
-      }
-
-      setLoading(false)
-    }
-
-    loadUser()
-
-    const { data: listener } = supabase.auth.onAuthStateChange(
-      async (_event, session) => {
-        const sessionUser = session?.user ?? null
-
-        setUser(sessionUser)
-
-        if (sessionUser) {
-          const { data: profileData } = await supabase
-            .from('profiles')
-            .select('id, role, tenant_id')
-            .eq('id', sessionUser.id)
-            .single()
-
-          if (profileData) {
-            setProfile(profileData)
-          }
-        } else {
-          setProfile(null)
-        }
-
-        setLoading(false)
-      }
-    )
-
-    return () => {
-      listener.subscription.unsubscribe()
-    }
-  }, [])
-
-  async function signOut() {
-    await supabase.auth.signOut()
-    setUser(null)
-    setProfile(null)
+// Listener de mudanças de auth
+const { data: listener } = supabase.auth.onAuthStateChange(
+  (_event, session) => {
+    setUser(session?.user ?? null)
   }
+)
 
-  return (
-    <AuthContext.Provider
-      value={{
-        user,
-        profile,
-        loading,
-        signOut
-      }}
-    >
-      {children}
-    </AuthContext.Provider>
-  )
+return () => {
+  listener.subscription.unsubscribe()
+}
+```
+
+}, [])
+
+const signOut = async () => {
+await supabase.auth.signOut()
+}
+
+return (
+<AuthContext.Provider value={{ user, profile, loading, signOut }}>
+{children}
+</AuthContext.Provider>
+)
+}
+
+// 🔥 AQUI ESTÁ O QUE FALTAVA
+export function useAuth() {
+const context = useContext(AuthContext)
+
+if (!context) {
+throw new Error('useAuth deve ser usado dentro de um AuthProvider')
+}
+
+return context
 }
