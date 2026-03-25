@@ -1,17 +1,19 @@
-import './globals.css'
+'use client'
+
 import { AuthProvider } from '@/contexts/AuthProvider'
 
-export const metadata = {
-title: 'Georgia Sistemas',
-description: 'Sistema multi-tenant',
-}
-
 export default function RootLayout({
-children,
+  children,
 }: {
-children: React.ReactNode
+  children: React.ReactNode
 }) {
-return ( <html lang="pt-BR"> <body> <AuthProvider>
-{children} </AuthProvider> </body> </html>
-)
+  return (
+    <html lang="pt-BR">
+      <body>
+        <AuthProvider>
+          {children}
+        </AuthProvider>
+      </body>
+    </html>
+  )
 }
