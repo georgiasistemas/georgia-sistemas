@@ -1,19 +1,15 @@
-'use client'
-
-import { AuthProvider } from '@/contexts/AuthProvider'
+import { AuthProvider } from "@/contexts/AuthContext";
 
 export default function RootLayout({
   children,
 }: {
-  children: React.ReactNode
+  children: React.ReactNode;
 }) {
   return (
     <html lang="pt-BR">
       <body>
-        <AuthProvider>
-          {children}
-        </AuthProvider>
+        <AuthProvider>{children}</AuthProvider>
       </body>
     </html>
-  )
+  );
 }
