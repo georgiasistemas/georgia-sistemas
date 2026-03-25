@@ -1,38 +1,48 @@
 "use client";
 
 import { createContext, useContext, useEffect, useState } from "react";
-
-type User = {
-  id: string;
-  email: string;
-} | null;
+import { supabase } from "@/lib/supabase";
+import { User } from "@supabase/supabase-js";
 
 type AuthContextType = {
-  user: User;
+  user: User | null;
   loading: boolean;
-  signOut: () => void;
+  signOut: () => Promise<void>;
 };
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
-  const [user, setUser] = useState<User>(null);
+  const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // Simulação (depois ligamos no Supabase)
-    setTimeout(() => {
-      setUser({
-        id: "1",
-        email: "admin@teste.com",
-      });
+    // 🔹 Pega sessão atual ao carregar
+    const getSession = async () => {
+      const { data } = await supabase.auth.getSession();
+      setUser(data.session?.user ?? null);
       setLoading(false);
-    }, 1000);
+    };
+
+    getSession();
+
+    // 🔹 Escuta mudanças de autenticação
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((_event, session) => {
+      setUser(session?.user ?? null);
+    });
+
+    return () => {
+      subscription.unsubscribe();
+    };
   }, []);
 
-  function signOut() {
+  // 🔹 Logout funcional
+  const signOut = async () => {
+    await supabase.auth.signOut();
     setUser(null);
-  }
+  };
 
   return (
     <AuthContext.Provider value={{ user, loading, signOut }}>
@@ -41,6 +51,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   );
 }
 
+// 🔹 Hook seguro (evita erro "useAuth fora do provider")
 export function useAuth() {
   const context = useContext(AuthContext);
 
