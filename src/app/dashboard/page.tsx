@@ -1,31 +1,21 @@
 'use client'
 
-export const dynamic = 'force-dynamic'
-import { useEffect } from 'react'
-import { useRouter } from 'next/navigation'
-import { useAuth } from '@/contexts/AuthContext'
+import { useEffect, useState } from 'react'
+import { useAuth } from '@/contexts/AuthProvider'
 
-export default function DashboardPage() {
-  const { user, loading } = useAuth()
-  const router = useRouter()
+export const dynamic = 'force-dynamic'
+
+export default function Page() {
+  const [mounted, setMounted] = useState(false)
+  const auth = useAuth()
 
   useEffect(() => {
-    if (!loading && !user) {
-      router.replace('/')
-    }
-  }, [user, loading, router])
+    setMounted(true)
+  }, [])
 
-  if (loading) return <p>Carregando...</p>
+  if (!mounted) return null
 
-  if (!user) return null
+  const { user } = auth
 
-  return (
-    <div>
-      <h1>Bem-vindo ao Georgia Sistemas</h1>
-
-      <p>
-        Este é o painel principal do sistema.
-      </p>
-    </div>
-  )
+  return <div>{user?.email}</div>
 }
