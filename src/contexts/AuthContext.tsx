@@ -1,31 +1,30 @@
-'use client'
+"use client";
 
-import { createContext, useContext } from 'react'
-import type { User } from '@supabase/supabase-js'
+import { createContext, useContext, useState } from "react";
 
-export type Profile = {
-  id: string
-  role: string
-  tenant_id: string | null
+type AuthContextType = {
+  user: any;
+  setUser: (user: any) => void;
+};
+
+const AuthContext = createContext<AuthContextType | null>(null);
+
+export function AuthProvider({ children }: { children: React.ReactNode }) {
+  const [user, setUser] = useState<any>(null);
+
+  return (
+    <AuthContext.Provider value={{ user, setUser }}>
+      {children}
+    </AuthContext.Provider>
+  );
 }
-
-export type AuthContextType = {
-  user: User | null
-  profile: Profile | null
-  loading: boolean
-  signOut: () => Promise<void>
-}
-
-export const AuthContext = createContext<AuthContextType | undefined>(
-  undefined
-)
 
 export function useAuth() {
-  const context = useContext(AuthContext)
+  const context = useContext(AuthContext);
 
   if (!context) {
-    throw new Error('useAuth deve ser usado dentro do AuthProvider')
+    throw new Error("useAuth deve ser usado dentro do AuthProvider");
   }
 
-  return context
+  return context;
 }
