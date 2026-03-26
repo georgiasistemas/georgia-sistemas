@@ -34,7 +34,7 @@ export default function ProductsPage() {
         .maybeSingle();
 
       console.log("PROFILE:", profile);
-      console.log("PROFILE ERROR:", profileError);
+     console.log("PROFILE ERROR FULL:", JSON.stringify(profileError, null, 2));
 
       if (!profile) {
         alert("Profile não encontrado");
