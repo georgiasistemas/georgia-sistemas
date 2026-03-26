@@ -1,108 +1,85 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
-import { useAuth } from "@/contexts/AuthContext";
+import { useState } from "react";
 import { supabase } from "@/lib/supabase";
-
-type Product = {
-  id: string;
-  name: string;
-  price: number;
-};
+import { useAuth } from "@/contexts/AuthContext";
 
 export default function ProductsPage() {
-  const { user, loading } = useAuth();
-  const router = useRouter();
+  const { user } = useAuth();
 
-  const [products, setProducts] = useState<Product[]>([]);
   const [name, setName] = useState("");
   const [price, setPrice] = useState("");
 
-  useEffect(() => {
-    if (!loading && !user) {
-      router.push("/login");
-    }
-  }, [user, loading, router]);
+  async function handleCreateProduct() {
+    try {
+      if (!user) {
+        alert("Usuário não autenticado");
+        return;
+      }
 
-  useEffect(() => {
-    if (user) fetchProducts();
-  }, [user]);
+      // 🔥 BUSCAR TENANT DO USUÁRIO
+      const { data: profile, error: profileError } = await supabase
+        .from("profiles")
+        .select("tenant_id")
+        .eq("id", user.id)
+        .single();
 
-  async function fetchProducts() {
-    const { data, error } = await supabase
-      .from("products")
-      .select("*")
-      .order("id", { ascending: false });
+      if (profileError || !profile) {
+        console.error(profileError);
+        alert("Erro ao buscar tenant do usuário");
+        return;
+      }
 
-    if (!error && data) {
-      setProducts(data);
-    }
-  }
+      // 🔥 INSERT DO PRODUTO
+      const { error } = await supabase.from("products").insert([
+        {
+          name,
+          price: Number(price),
+          tenant_id: profile.tenant_id,
+          active: true,
+        },
+      ]);
 
-  async function handleAddProduct(e: React.FormEvent) {
-    e.preventDefault();
+      if (error) {
+        console.error(error);
+        alert("Erro ao cadastrar produto");
+        return;
+      }
 
-    if (!name || !price) return;
+      alert("Produto cadastrado com sucesso!");
 
-    const { error } = await supabase.from("products").insert([
-      {
-        name,
-        price: Number(price),
-      },
-    ]);
-
-    if (!error) {
+      // limpar campos
       setName("");
       setPrice("");
-      fetchProducts();
-    } else {
-      alert("Erro ao cadastrar produto");
+    } catch (err) {
+      console.error(err);
+      alert("Erro inesperado");
     }
   }
-
-  if (loading) return <p>Carregando...</p>;
-  if (!user) return null;
 
   return (
     <div style={{ padding: 20 }}>
-      <h1>Produtos</h1>
+      <h1>Cadastro de Produtos</h1>
 
-      {/* FORMULÁRIO */}
-      <form onSubmit={handleAddProduct}>
-        <input
-          type="text"
-          placeholder="Nome do produto"
-          value={name}
-          onChange={(e) => setName(e.target.value)}
-        />
-        <br /><br />
+      <input
+        type="text"
+        placeholder="Nome do produto"
+        value={name}
+        onChange={(e) => setName(e.target.value)}
+        style={{ display: "block", marginBottom: 10 }}
+      />
 
-        <input
-          type="number"
-          placeholder="Preço"
-          value={price}
-          onChange={(e) => setPrice(e.target.value)}
-        />
-        <br /><br />
+      <input
+        type="number"
+        placeholder="Preço"
+        value={price}
+        onChange={(e) => setPrice(e.target.value)}
+        style={{ display: "block", marginBottom: 10 }}
+      />
 
-        <button type="submit">Cadastrar</button>
-      </form>
-
-      <hr />
-
-      {/* LISTAGEM */}
-      <h2>Lista de produtos</h2>
-
-      {products.length === 0 && <p>Nenhum produto cadastrado</p>}
-
-      <ul>
-        {products.map((product) => (
-          <li key={product.id}>
-            {product.name} - R$ {product.price}
-          </li>
-        ))}
-      </ul>
+      <button onClick={handleCreateProduct}>
+        Cadastrar Produto
+      </button>
     </div>
   );
 }
