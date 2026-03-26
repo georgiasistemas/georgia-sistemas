@@ -1,39 +1,46 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/lib/supabase";
 
 export default function ProductsPage() {
   const { user } = useAuth();
 
-  // DEBUG (IMPORTANTE)
-  console.log("USER LOGADO ID:", user?.id);
-
   const [name, setName] = useState("");
   const [price, setPrice] = useState("");
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    if (user) {
+      console.log("USER PRONTO:", user.id);
+      setLoading(false);
+    }
+  }, [user]);
 
   async function handleCreateProduct() {
     try {
       if (!user) {
-        alert("Usuário não logado");
+        alert("Usuário ainda não carregado");
         return;
       }
 
-      // Buscar tenant do usuário
+      console.log("Buscando profile com ID:", user.id);
+
       const { data: profile, error: profileError } = await supabase
         .from("profiles")
         .select("tenant_id")
         .eq("id", user.id)
-        .single();
+        .maybeSingle();
 
-      if (profileError || !profile) {
-        console.error(profileError);
-        alert("Erro ao buscar tenant do usuário");
+      console.log("PROFILE:", profile);
+      console.log("PROFILE ERROR:", profileError);
+
+      if (!profile) {
+        alert("Profile não encontrado");
         return;
       }
 
-      // Inserir produto
       const { error } = await supabase.from("products").insert([
         {
           name,
@@ -58,20 +65,21 @@ export default function ProductsPage() {
     }
   }
 
+  if (loading) {
+    return <p>Carregando usuário...</p>;
+  }
+
   return (
     <div style={{ padding: 20 }}>
       <h1>Cadastro de Produtos</h1>
 
-      <p>
-        Usuário: {user ? user.email : "Não logado"}
-      </p>
+      <p>Usuário: {user?.email}</p>
 
       <input
         type="text"
         placeholder="Nome do produto"
         value={name}
         onChange={(e) => setName(e.target.value)}
-        style={{ display: "block", marginBottom: 10 }}
       />
 
       <input
@@ -79,7 +87,6 @@ export default function ProductsPage() {
         placeholder="Preço"
         value={price}
         onChange={(e) => setPrice(e.target.value)}
-        style={{ display: "block", marginBottom: 10 }}
       />
 
       <button onClick={handleCreateProduct}>
