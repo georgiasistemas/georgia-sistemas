@@ -1,11 +1,14 @@
 "use client";
 
 import { useState } from "react";
-import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/contexts/AuthContext";
+import { supabase } from "@/lib/supabase";
 
 export default function ProductsPage() {
   const { user } = useAuth();
+
+  // DEBUG (IMPORTANTE)
+  console.log("USER LOGADO ID:", user?.id);
 
   const [name, setName] = useState("");
   const [price, setPrice] = useState("");
@@ -13,11 +16,11 @@ export default function ProductsPage() {
   async function handleCreateProduct() {
     try {
       if (!user) {
-        alert("Usuário não autenticado");
+        alert("Usuário não logado");
         return;
       }
 
-      // 🔥 BUSCAR TENANT DO USUÁRIO
+      // Buscar tenant do usuário
       const { data: profile, error: profileError } = await supabase
         .from("profiles")
         .select("tenant_id")
@@ -30,13 +33,12 @@ export default function ProductsPage() {
         return;
       }
 
-      // 🔥 INSERT DO PRODUTO
+      // Inserir produto
       const { error } = await supabase.from("products").insert([
         {
           name,
           price: Number(price),
           tenant_id: profile.tenant_id,
-          active: true,
         },
       ]);
 
@@ -46,9 +48,8 @@ export default function ProductsPage() {
         return;
       }
 
-      alert("Produto cadastrado com sucesso!");
+      alert("Produto cadastrado com sucesso");
 
-      // limpar campos
       setName("");
       setPrice("");
     } catch (err) {
@@ -60,6 +61,10 @@ export default function ProductsPage() {
   return (
     <div style={{ padding: 20 }}>
       <h1>Cadastro de Produtos</h1>
+
+      <p>
+        Usuário: {user ? user.email : "Não logado"}
+      </p>
 
       <input
         type="text"
