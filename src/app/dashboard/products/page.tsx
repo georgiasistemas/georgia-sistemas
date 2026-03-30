@@ -4,47 +4,69 @@ import { useEffect, useState } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/lib/supabase";
 
+type Product = {
+  id: string;
+  name: string;
+  price: number;
+};
+
 export default function ProductsPage() {
   const { user } = useAuth();
 
   const [name, setName] = useState("");
   const [price, setPrice] = useState("");
+  const [products, setProducts] = useState<Product[]>([]);
+  const [tenantId, setTenantId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     if (user) {
-      console.log("USER PRONTO:", user.id);
-      setLoading(false);
+      loadProfileAndProducts();
     }
   }, [user]);
 
-  async function handleCreateProduct() {
+  async function loadProfileAndProducts() {
     try {
-      if (!user) {
-        alert("Usuário ainda não carregado");
+      setLoading(true);
+
+      const { data: profile, error } = await supabase
+        .from("profiles")
+        .select("tenant_id")
+        .eq("id", user?.id)
+        .single();
+
+      if (error || !profile) {
+        console.error(error);
+        alert("Erro ao carregar perfil");
         return;
       }
 
-      // 🔥 DEBUG DE SESSÃO
-      const { data: sessionData } = await supabase.auth.getSession();
-      console.log("SESSION:", sessionData);
+      setTenantId(profile.tenant_id);
 
-      console.log("Buscando profile com ID:", user.id);
-
-      const { data: profile, error: profileError } = await supabase
-        .from("profiles")
+      const { data: productsData, error: productsError } = await supabase
+        .from("products")
         .select("*")
-        .eq("id", user.id)
-        .maybeSingle();
+        .eq("tenant_id", profile.tenant_id);
 
-      console.log("PROFILE:", profile);
-      console.log(
-        "PROFILE ERROR:",
-        JSON.stringify(profileError, null, 2)
-      );
+      if (productsError) {
+        console.error(productsError);
+        alert("Erro ao carregar produtos");
+        return;
+      }
 
-      if (!profile) {
-        alert("Profile não encontrado");
+      setProducts(productsData || []);
+    } catch (err) {
+      console.error(err);
+      alert("Erro inesperado");
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function handleCreateProduct() {
+    try {
+      if (!tenantId) {
+        alert("Tenant não encontrado");
         return;
       }
 
@@ -52,7 +74,7 @@ export default function ProductsPage() {
         {
           name,
           price: Number(price),
-          tenant_id: profile.tenant_id,
+          tenant_id: tenantId,
         },
       ]);
 
@@ -66,6 +88,9 @@ export default function ProductsPage() {
 
       setName("");
       setPrice("");
+
+      // 🔥 recarrega lista
+      loadProfileAndProducts();
     } catch (err) {
       console.error(err);
       alert("Erro inesperado");
@@ -73,34 +98,52 @@ export default function ProductsPage() {
   }
 
   if (loading) {
-    return <p>Carregando usuário...</p>;
+    return <p>Carregando...</p>;
   }
 
   return (
     <div style={{ padding: 20 }}>
-      <h1>Cadastro de Produtos</h1>
+      <h1>Produtos</h1>
 
       <p>Usuário: {user?.email}</p>
 
-      <input
-        type="text"
-        placeholder="Nome do produto"
-        value={name}
-        onChange={(e) => setName(e.target.value)}
-        style={{ display: "block", marginBottom: 10 }}
-      />
+      {/* FORMULÁRIO */}
+      <div style={{ marginBottom: 20 }}>
+        <input
+          type="text"
+          placeholder="Nome do produto"
+          value={name}
+          onChange={(e) => setName(e.target.value)}
+          style={{ display: "block", marginBottom: 10 }}
+        />
 
-      <input
-        type="number"
-        placeholder="Preço"
-        value={price}
-        onChange={(e) => setPrice(e.target.value)}
-        style={{ display: "block", marginBottom: 10 }}
-      />
+        <input
+          type="number"
+          placeholder="Preço"
+          value={price}
+          onChange={(e) => setPrice(e.target.value)}
+          style={{ display: "block", marginBottom: 10 }}
+        />
 
-      <button onClick={handleCreateProduct}>
-        Cadastrar Produto
-      </button>
+        <button onClick={handleCreateProduct}>
+          Cadastrar Produto
+        </button>
+      </div>
+
+      {/* LISTA */}
+      <h2>Lista de Produtos</h2>
+
+      {products.length === 0 ? (
+        <p>Nenhum produto cadastrado</p>
+      ) : (
+        <ul>
+          {products.map((product) => (
+            <li key={product.id}>
+              {product.name} - R$ {product.price}
+            </li>
+          ))}
+        </ul>
+      )}
     </div>
   );
 }
