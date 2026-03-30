@@ -29,6 +29,7 @@ export default function ProductsPage() {
     try {
       setLoading(true);
 
+      // 🔥 Buscar tenant do usuário
       const { data: profile, error } = await supabase
         .from("profiles")
         .select("tenant_id")
@@ -43,10 +44,12 @@ export default function ProductsPage() {
 
       setTenantId(profile.tenant_id);
 
+      // 🔥 Buscar produtos do tenant
       const { data: productsData, error: productsError } = await supabase
         .from("products")
         .select("*")
-        .eq("tenant_id", profile.tenant_id);
+        .eq("tenant_id", profile.tenant_id)
+        .order("created_at", { ascending: false });
 
       if (productsError) {
         console.error(productsError);
@@ -89,8 +92,50 @@ export default function ProductsPage() {
       setName("");
       setPrice("");
 
-      // 🔥 recarrega lista
       loadProfileAndProducts();
+    } catch (err) {
+      console.error(err);
+      alert("Erro inesperado");
+    }
+  }
+
+  async function handleUpdateProduct(product: Product) {
+    try {
+      const { error } = await supabase
+        .from("products")
+        .update({
+          name: product.name,
+          price: product.price,
+        })
+        .eq("id", product.id);
+
+      if (error) {
+        console.error(error);
+        alert("Erro ao atualizar produto");
+        return;
+      }
+
+      alert("Produto atualizado com sucesso");
+    } catch (err) {
+      console.error(err);
+      alert("Erro inesperado");
+    }
+  }
+
+  async function handleDeleteProduct(id: string) {
+    try {
+      const { error } = await supabase
+        .from("products")
+        .delete()
+        .eq("id", id);
+
+      if (error) {
+        console.error(error);
+        alert("Erro ao deletar produto");
+        return;
+      }
+
+      setProducts((prev) => prev.filter((p) => p.id !== id));
     } catch (err) {
       console.error(err);
       alert("Erro inesperado");
@@ -138,8 +183,49 @@ export default function ProductsPage() {
       ) : (
         <ul>
           {products.map((product) => (
-            <li key={product.id}>
-              {product.name} - R$ {product.price}
+            <li key={product.id} style={{ marginBottom: 10 }}>
+              <input
+                type="text"
+                value={product.name}
+                onChange={(e) =>
+                  setProducts((prev) =>
+                    prev.map((p) =>
+                      p.id === product.id
+                        ? { ...p, name: e.target.value }
+                        : p
+                    )
+                  )
+                }
+              />
+
+              <input
+                type="number"
+                value={product.price}
+                onChange={(e) =>
+                  setProducts((prev) =>
+                    prev.map((p) =>
+                      p.id === product.id
+                        ? { ...p, price: Number(e.target.value) }
+                        : p
+                    )
+                  )
+                }
+                style={{ marginLeft: 10 }}
+              />
+
+              <button
+                onClick={() => handleUpdateProduct(product)}
+                style={{ marginLeft: 10 }}
+              >
+                Salvar
+              </button>
+
+              <button
+                onClick={() => handleDeleteProduct(product.id)}
+                style={{ marginLeft: 10 }}
+              >
+                Deletar
+              </button>
             </li>
           ))}
         </ul>
