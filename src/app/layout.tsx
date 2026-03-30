@@ -1,4 +1,10 @@
+import "./globals.css";
 import { AuthProvider } from "@/contexts/AuthContext";
+
+export const metadata = {
+  title: "Georgia Sistemas",
+  description: "Sistema de gestão",
+};
 
 export default function RootLayout({
   children,
@@ -8,7 +14,9 @@ export default function RootLayout({
   return (
     <html lang="pt-BR">
       <body>
-        <AuthProvider>{children}</AuthProvider>
+        <AuthProvider>
+          {children}
+        </AuthProvider>
       </body>
     </html>
   );
