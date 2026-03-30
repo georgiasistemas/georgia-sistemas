@@ -25,16 +25,23 @@ export default function ProductsPage() {
         return;
       }
 
+      // 🔥 DEBUG DE SESSÃO
+      const { data: sessionData } = await supabase.auth.getSession();
+      console.log("SESSION:", sessionData);
+
       console.log("Buscando profile com ID:", user.id);
 
       const { data: profile, error: profileError } = await supabase
         .from("profiles")
-        .select("tenant_id")
+        .select("*")
         .eq("id", user.id)
         .maybeSingle();
 
       console.log("PROFILE:", profile);
-     console.log("PROFILE ERROR FULL:", JSON.stringify(profileError, null, 2));
+      console.log(
+        "PROFILE ERROR:",
+        JSON.stringify(profileError, null, 2)
+      );
 
       if (!profile) {
         alert("Profile não encontrado");
@@ -80,6 +87,7 @@ export default function ProductsPage() {
         placeholder="Nome do produto"
         value={name}
         onChange={(e) => setName(e.target.value)}
+        style={{ display: "block", marginBottom: 10 }}
       />
 
       <input
@@ -87,6 +95,7 @@ export default function ProductsPage() {
         placeholder="Preço"
         value={price}
         onChange={(e) => setPrice(e.target.value)}
+        style={{ display: "block", marginBottom: 10 }}
       />
 
       <button onClick={handleCreateProduct}>
