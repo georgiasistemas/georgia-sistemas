@@ -4,195 +4,120 @@ import { useEffect, useState } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/lib/supabase";
 
-type Product = {
-  id: string;
-  name: string;
-  price: number;
-};
-
 export default function ProductsPage() {
   const { user } = useAuth();
 
   const [name, setName] = useState("");
   const [price, setPrice] = useState("");
-  const [products, setProducts] = useState<Product[]>([]);
+  const [products, setProducts] = useState<any[]>([]);
   const [tenantId, setTenantId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    if (user) {
-      loadProfileAndProducts();
-    }
+    if (user) loadData();
   }, [user]);
 
-  async function loadProfileAndProducts() {
-    try {
-      setLoading(true);
+  async function loadData() {
+    setLoading(true);
 
-      // 🔥 Buscar tenant do usuário
-      const { data: profile, error } = await supabase
-        .from("profiles")
-        .select("tenant_id")
-        .eq("id", user?.id)
-        .single();
+    const { data: profile } = await supabase
+      .from("profiles")
+      .select("tenant_id")
+      .eq("id", user?.id)
+      .single();
 
-      if (error || !profile) {
-        console.error(error);
-        alert("Erro ao carregar perfil");
-        return;
-      }
+    if (!profile) return;
 
-      setTenantId(profile.tenant_id);
+    setTenantId(profile.tenant_id);
 
-      // 🔥 Buscar produtos do tenant
-      const { data: productsData, error: productsError } = await supabase
-        .from("products")
-        .select("*")
-        .eq("tenant_id", profile.tenant_id)
-        .order("created_at", { ascending: false });
+    const { data } = await supabase
+      .from("products")
+      .select("*")
+      .eq("tenant_id", profile.tenant_id)
+      .order("created_at", { ascending: false });
 
-      if (productsError) {
-        console.error(productsError);
-        alert("Erro ao carregar produtos");
-        return;
-      }
-
-      setProducts(productsData || []);
-    } catch (err) {
-      console.error(err);
-      alert("Erro inesperado");
-    } finally {
-      setLoading(false);
-    }
+    setProducts(data || []);
+    setLoading(false);
   }
 
-  async function handleCreateProduct() {
-    try {
-      if (!tenantId) {
-        alert("Tenant não encontrado");
-        return;
-      }
+  async function createProduct() {
+    if (!tenantId) return;
 
-      const { error } = await supabase.from("products").insert([
-        {
-          name,
-          price: Number(price),
-          tenant_id: tenantId,
-        },
-      ]);
+    await supabase.from("products").insert([
+      { name, price: Number(price), tenant_id: tenantId },
+    ]);
 
-      if (error) {
-        console.error(error);
-        alert("Erro ao cadastrar produto");
-        return;
-      }
-
-      alert("Produto cadastrado com sucesso");
-
-      setName("");
-      setPrice("");
-
-      loadProfileAndProducts();
-    } catch (err) {
-      console.error(err);
-      alert("Erro inesperado");
-    }
+    setName("");
+    setPrice("");
+    loadData();
   }
 
-  async function handleUpdateProduct(product: Product) {
-    try {
-      const { error } = await supabase
-        .from("products")
-        .update({
-          name: product.name,
-          price: product.price,
-        })
-        .eq("id", product.id);
-
-      if (error) {
-        console.error(error);
-        alert("Erro ao atualizar produto");
-        return;
-      }
-
-      alert("Produto atualizado com sucesso");
-    } catch (err) {
-      console.error(err);
-      alert("Erro inesperado");
-    }
+  async function updateProduct(p: any) {
+    await supabase
+      .from("products")
+      .update({ name: p.name, price: p.price })
+      .eq("id", p.id);
   }
 
-  async function handleDeleteProduct(id: string) {
-    try {
-      const { error } = await supabase
-        .from("products")
-        .delete()
-        .eq("id", id);
-
-      if (error) {
-        console.error(error);
-        alert("Erro ao deletar produto");
-        return;
-      }
-
-      setProducts((prev) => prev.filter((p) => p.id !== id));
-    } catch (err) {
-      console.error(err);
-      alert("Erro inesperado");
-    }
+  async function deleteProduct(id: string) {
+    await supabase.from("products").delete().eq("id", id);
+    setProducts((prev) => prev.filter((p) => p.id !== id));
   }
 
-  if (loading) {
-    return <p>Carregando...</p>;
-  }
+  if (loading) return <p className="p-6">Carregando...</p>;
 
   return (
-    <div style={{ padding: 20 }}>
-      <h1>Produtos</h1>
+    <div className="p-6 space-y-6">
+      <h1 className="text-2xl font-bold">Produtos</h1>
 
-      <p>Usuário: {user?.email}</p>
+      {/* FORM */}
+      <div className="bg-white shadow rounded-2xl p-4 space-y-3">
+        <h2 className="font-semibold">Novo Produto</h2>
 
-      {/* FORMULÁRIO */}
-      <div style={{ marginBottom: 20 }}>
         <input
-          type="text"
-          placeholder="Nome do produto"
+          className="border rounded-xl p-2 w-full"
+          placeholder="Nome"
           value={name}
           onChange={(e) => setName(e.target.value)}
-          style={{ display: "block", marginBottom: 10 }}
         />
 
         <input
-          type="number"
+          className="border rounded-xl p-2 w-full"
           placeholder="Preço"
+          type="number"
           value={price}
           onChange={(e) => setPrice(e.target.value)}
-          style={{ display: "block", marginBottom: 10 }}
         />
 
-        <button onClick={handleCreateProduct}>
-          Cadastrar Produto
+        <button
+          onClick={createProduct}
+          className="bg-black text-white px-4 py-2 rounded-xl"
+        >
+          Cadastrar
         </button>
       </div>
 
-      {/* LISTA */}
-      <h2>Lista de Produtos</h2>
+      {/* LIST */}
+      <div className="bg-white shadow rounded-2xl p-4">
+        <h2 className="font-semibold mb-4">Lista</h2>
 
-      {products.length === 0 ? (
-        <p>Nenhum produto cadastrado</p>
-      ) : (
-        <ul>
-          {products.map((product) => (
-            <li key={product.id} style={{ marginBottom: 10 }}>
+        {products.length === 0 && (
+          <p className="text-gray-500">Nenhum produto</p>
+        )}
+
+        <div className="space-y-3">
+          {products.map((p) => (
+            <div
+              key={p.id}
+              className="flex gap-2 items-center border p-2 rounded-xl"
+            >
               <input
-                type="text"
-                value={product.name}
+                className="border p-2 rounded w-full"
+                value={p.name}
                 onChange={(e) =>
                   setProducts((prev) =>
-                    prev.map((p) =>
-                      p.id === product.id
-                        ? { ...p, name: e.target.value }
-                        : p
+                    prev.map((x) =>
+                      x.id === p.id ? { ...x, name: e.target.value } : x
                     )
                   )
                 }
@@ -200,36 +125,36 @@ export default function ProductsPage() {
 
               <input
                 type="number"
-                value={product.price}
+                className="border p-2 rounded w-32"
+                value={p.price}
                 onChange={(e) =>
                   setProducts((prev) =>
-                    prev.map((p) =>
-                      p.id === product.id
-                        ? { ...p, price: Number(e.target.value) }
-                        : p
+                    prev.map((x) =>
+                      x.id === p.id
+                        ? { ...x, price: Number(e.target.value) }
+                        : x
                     )
                   )
                 }
-                style={{ marginLeft: 10 }}
               />
 
               <button
-                onClick={() => handleUpdateProduct(product)}
-                style={{ marginLeft: 10 }}
+                onClick={() => updateProduct(p)}
+                className="bg-blue-500 text-white px-3 py-2 rounded-xl"
               >
                 Salvar
               </button>
 
               <button
-                onClick={() => handleDeleteProduct(product.id)}
-                style={{ marginLeft: 10 }}
+                onClick={() => deleteProduct(p.id)}
+                className="bg-red-500 text-white px-3 py-2 rounded-xl"
               >
-                Deletar
+                X
               </button>
-            </li>
+            </div>
           ))}
-        </ul>
-      )}
+        </div>
+      </div>
     </div>
   );
 }
