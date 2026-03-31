@@ -1,12 +1,12 @@
-"use client";
-
 export default function Dashboard() {
   return (
-    <div className="p-10">
-      <h1 className="text-2xl font-bold">Dashboard</h1>
+    <div className="p-10 bg-gray-100 min-h-screen">
+      <h1 className="text-3xl font-bold mb-4">Dashboard</h1>
 
-      <div className="bg-green-500 text-white p-6 text-xl mt-4 rounded-lg">
-        Tailwind funcionando AGORA
+      <div className="bg-white p-6 rounded-xl shadow">
+        <p className="text-gray-700">
+          Bem-vindo ao sistema 🎉
+        </p>
       </div>
     </div>
   );

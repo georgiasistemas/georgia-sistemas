@@ -1,32 +1,33 @@
-'use client'
+"use client";
 
-import Link from 'next/link'
+import Link from "next/link";
 
 export default function DashboardSidebar() {
   return (
-    <aside
-      style={{
-        width: 220,
-        background: '#111',
-        color: '#fff',
-        padding: 20,
-      }}
-    >
-      <h2 style={{ marginBottom: 24 }}>Georgia Sistemas</h2>
+    <aside className="w-64 min-h-screen bg-gradient-to-b from-purple-900 via-purple-800 to-pink-600 text-white p-6">
+      
+      <h2 className="text-2xl font-bold mb-8">
+        Georgia Sistemas
+      </h2>
 
-      <nav style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-        <Link href="/dashboard" style={{ color: '#fff' }}>
+      <nav className="flex flex-col gap-4">
+        <Link href="/dashboard" className="hover:opacity-80">
           Dashboard
         </Link>
 
-        <Link href="/dashboard/products" style={{ color: '#fff' }}>
+        <Link href="/dashboard/products" className="hover:opacity-80">
           Produtos
         </Link>
 
-        <Link href="/dashboard/pedidos" style={{ color: '#fff' }}>
+        <Link href="/dashboard/orders" className="hover:opacity-80">
           Pedidos
         </Link>
+
+        <Link href="/dashboard/settings" className="hover:opacity-80">
+          Configurações
+        </Link>
       </nav>
+
     </aside>
-  )
+  );
 }

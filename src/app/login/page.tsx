@@ -3,9 +3,11 @@
 import { useState } from "react";
 import { supabase } from "@/lib/supabase";
 import { useRouter } from "next/navigation";
+import Button from "@/components/ui/Button";
 
 export default function LoginPage() {
   const router = useRouter();
+
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
@@ -32,32 +34,47 @@ export default function LoginPage() {
   }
 
   return (
-    <div style={{ padding: 20 }}>
-      <h1>Login</h1>
+    <div className="min-h-screen flex items-center justify-center bg-gray-100">
+      
+      <div className="bg-white p-8 rounded-2xl shadow-md w-full max-w-sm">
+        
+        <h1 className="text-2xl font-bold mb-6 text-center">
+          Acessar Sistema
+        </h1>
 
-      <form onSubmit={handleLogin}>
-        <input
-          type="email"
-          placeholder="Email"
-          value={email}
-          onChange={(e) => setEmail(e.target.value)}
-        />
-        <br /><br />
+        <form onSubmit={handleLogin} className="flex flex-col gap-4">
+          
+          <input
+            type="email"
+            placeholder="Email"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            className="border p-3 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500"
+            required
+          />
 
-        <input
-          type="password"
-          placeholder="Senha"
-          value={password}
-          onChange={(e) => setPassword(e.target.value)}
-        />
-        <br /><br />
+          <input
+            type="password"
+            placeholder="Senha"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            className="border p-3 rounded-lg focus:outline-none focus:ring-2 focus:ring-pink-500"
+            required
+          />
 
-        <button type="submit" disabled={loading}>
-          {loading ? "Entrando..." : "Entrar"}
-        </button>
-      </form>
+          <Button type="submit" disabled={loading}>
+            {loading ? "Entrando..." : "Entrar"}
+          </Button>
 
-      {error && <p style={{ color: "red" }}>{error}</p>}
+        </form>
+
+        {error && (
+          <p className="text-red-500 mt-4 text-sm text-center">
+            {error}
+          </p>
+        )}
+
+      </div>
     </div>
   );
 }
