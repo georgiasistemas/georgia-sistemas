@@ -6,58 +6,45 @@ import { User } from "@supabase/supabase-js";
 
 type AuthContextType = {
   user: User | null;
-  loading: boolean;
   signOut: () => Promise<void>;
 };
 
-const AuthContext = createContext<AuthContextType | undefined>(undefined);
+const AuthContext = createContext<AuthContextType>({
+  user: null,
+  signOut: async () => {},
+});
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
-  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // 🔹 Pega sessão atual ao carregar
-    const getSession = async () => {
-      const { data } = await supabase.auth.getSession();
-      setUser(data.session?.user ?? null);
-      setLoading(false);
-    };
-
-    getSession();
-
-    // 🔹 Escuta mudanças de autenticação
-    const {
-      data: { subscription },
-    } = supabase.auth.onAuthStateChange((_event, session) => {
-      setUser(session?.user ?? null);
+    // pega usuário atual
+    supabase.auth.getUser().then(({ data }) => {
+      setUser(data.user ?? null);
     });
 
+    // escuta mudanças de login/logout
+    const { data: listener } = supabase.auth.onAuthStateChange(
+      (_event, session) => {
+        setUser(session?.user ?? null);
+      }
+    );
+
     return () => {
-      subscription.unsubscribe();
+      listener.subscription.unsubscribe();
     };
   }, []);
 
-  // 🔹 Logout funcional
-  const signOut = async () => {
+  async function signOut() {
     await supabase.auth.signOut();
-    setUser(null);
-  };
+    window.location.href = "/login"; // 🔥 garante redirecionamento
+  }
 
   return (
-    <AuthContext.Provider value={{ user, loading, signOut }}>
+    <AuthContext.Provider value={{ user, signOut }}>
       {children}
     </AuthContext.Provider>
   );
 }
 
-// 🔹 Hook seguro (evita erro "useAuth fora do provider")
-export function useAuth() {
-  const context = useContext(AuthContext);
-
-  if (!context) {
-    throw new Error("useAuth deve ser usado dentro do AuthProvider");
-  }
-
-  return context;
-}
+export const useAuth = () => useContext(AuthContext);
