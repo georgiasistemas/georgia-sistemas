@@ -1,29 +1,13 @@
 "use client";
 
-import { useEffect } from "react";
-import { useRouter } from "next/navigation";
-import { useAuth } from "@/contexts/AuthContext";
-
-export default function DashboardPage() {
-  const { user, loading } = useAuth();
-  const router = useRouter();
-
-  useEffect(() => {
-    if (!loading && !user) {
-      router.push("/login");
-    }
-  }, [user, loading, router]);
-
-  if (loading) return <p>Carregando...</p>;
-  if (!user) return null;
-
+export default function Dashboard() {
   return (
     <div>
       <h1>Dashboard</h1>
-      <p>Bem-vindo, {user.email}</p>
+
+      <div className="bg-green-500 text-white p-6 text-xl mt-4">
+        Tailwind funcionando
+      </div>
     </div>
   );
 }
-<div className="bg-green-500 text-white p-4">
-  Tailwind funcionando
-</div>
