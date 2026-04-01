@@ -1,57 +1,104 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/contexts/AuthContext";
 import Button from "@/components/ui/Button";
 
+type Product = {
+  id: string;
+  name: string;
+  price: number;
+};
+
 export default function ProductsPage() {
   const { user } = useAuth();
 
+  const [products, setProducts] = useState<Product[]>([]);
   const [name, setName] = useState("");
   const [price, setPrice] = useState("");
+  const [editingId, setEditingId] = useState<string | null>(null);
 
-  async function handleCreateProduct(e: React.FormEvent) {
-    e.preventDefault();
+  useEffect(() => {
+    fetchProducts();
+  }, [user]);
 
-    if (!user) return alert("Usuário não autenticado");
+  async function fetchProducts() {
+    if (!user) return;
 
-    // buscar tenant
-    const { data: profile, error: profileError } = await supabase
+    const { data: profile } = await supabase
       .from("profiles")
       .select("tenant_id")
       .eq("id", user.id)
       .single();
 
-    if (profileError || !profile) {
-      console.error(profileError);
-      return alert("Erro ao buscar tenant do usuário");
+    if (!profile) return;
+
+    const { data } = await supabase
+      .from("products")
+      .select("*")
+      .eq("tenant_id", profile.tenant_id);
+
+    setProducts(data || []);
+  }
+
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
+
+    if (!user) return;
+
+    const { data: profile } = await supabase
+      .from("profiles")
+      .select("tenant_id")
+      .eq("id", user.id)
+      .single();
+
+    if (!profile) return alert("Erro ao buscar tenant");
+
+    if (editingId) {
+      await supabase
+        .from("products")
+        .update({
+          name,
+          price: Number(price),
+        })
+        .eq("id", editingId);
+
+      setEditingId(null);
+    } else {
+      await supabase.from("products").insert({
+        name,
+        price: Number(price),
+        tenant_id: profile.tenant_id,
+      });
     }
-
-    const { error } = await supabase.from("products").insert({
-      name,
-      price: Number(price),
-      tenant_id: profile.tenant_id,
-    });
-
-    if (error) {
-      console.error(error);
-      return alert("Erro ao cadastrar produto");
-    }
-
-    alert("Produto cadastrado com sucesso!");
 
     setName("");
     setPrice("");
+    fetchProducts();
+  }
+
+  async function handleEdit(product: Product) {
+    setName(product.name);
+    setPrice(String(product.price));
+    setEditingId(product.id);
+  }
+
+  async function handleDelete(id: string) {
+    if (!confirm("Deseja excluir este produto?")) return;
+
+    await supabase.from("products").delete().eq("id", id);
+    fetchProducts();
   }
 
   return (
     <div className="p-10 bg-gray-100 min-h-screen">
       <h1 className="text-3xl font-bold mb-6">Produtos</h1>
 
+      {/* FORM */}
       <form
-        onSubmit={handleCreateProduct}
-        className="bg-white p-6 rounded-xl shadow flex flex-col gap-4 max-w-md"
+        onSubmit={handleSubmit}
+        className="bg-white p-6 rounded-xl shadow flex flex-col gap-4 max-w-md mb-8"
       >
         <input
           type="text"
@@ -72,9 +119,55 @@ export default function ProductsPage() {
         />
 
         <Button type="submit">
-          Cadastrar Produto
+          {editingId ? "Atualizar Produto" : "Cadastrar Produto"}
         </Button>
       </form>
+
+      {/* TABELA */}
+      <div className="bg-white p-6 rounded-xl shadow">
+        <table className="w-full text-left">
+          <thead>
+            <tr className="border-b">
+              <th className="p-2">Nome</th>
+              <th className="p-2">Preço</th>
+              <th className="p-2">Ações</th>
+            </tr>
+          </thead>
+
+          <tbody>
+            {products.map((product) => (
+              <tr key={product.id} className="border-b">
+                <td className="p-2">{product.name}</td>
+                <td className="p-2">R$ {product.price}</td>
+
+                <td className="p-2 flex gap-2">
+                  <Button
+                    onClick={() => handleEdit(product)}
+                    className="!px-3 !py-1 text-sm"
+                  >
+                    Editar
+                  </Button>
+
+                  <Button
+                    onClick={() => handleDelete(product.id)}
+                    className="!px-3 !py-1 text-sm bg-red-500 hover:opacity-80"
+                  >
+                    Excluir
+                  </Button>
+                </td>
+              </tr>
+            ))}
+
+            {products.length === 0 && (
+              <tr>
+                <td colSpan={3} className="p-4 text-center text-gray-500">
+                  Nenhum produto cadastrado
+                </td>
+              </tr>
+            )}
+          </tbody>
+        </table>
+      </div>
     </div>
   );
 }
