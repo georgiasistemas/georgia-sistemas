@@ -7,12 +7,14 @@ export default function Dashboard() {
   const [metrics, setMetrics] = useState({
     totalProducts: 0,
     activeProducts: 0,
+    totalOrders: 0,
   });
 
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     const fetchMetrics = async () => {
+      // Produtos
       const { count: totalProducts } = await supabase
         .from("products")
         .select("*", { count: "exact", head: true });
@@ -22,9 +24,15 @@ export default function Dashboard() {
         .select("*", { count: "exact", head: true })
         .eq("active", true);
 
+      // Pedidos
+      const { count: totalOrders } = await supabase
+        .from("orders")
+        .select("*", { count: "exact", head: true });
+
       setMetrics({
         totalProducts: totalProducts || 0,
         activeProducts: activeProducts || 0,
+        totalOrders: totalOrders || 0,
       });
 
       setLoading(false);
@@ -37,7 +45,7 @@ export default function Dashboard() {
     <div className="p-10 bg-gray-100 min-h-screen">
       <h1 className="text-3xl font-bold mb-4">Dashboard</h1>
 
-      {/* Card de boas-vindas */}
+      {/* Boas-vindas */}
       <div className="bg-white p-6 rounded-xl shadow mb-6">
         <p className="text-gray-700">
           Bem-vindo ao sistema 🎉
@@ -48,7 +56,7 @@ export default function Dashboard() {
       {loading ? (
         <p>Carregando métricas...</p>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <div className="bg-white p-6 rounded-xl shadow">
             <p className="text-gray-500 text-sm">
               Total de Produtos
@@ -64,6 +72,15 @@ export default function Dashboard() {
             </p>
             <h2 className="text-2xl font-bold">
               {metrics.activeProducts}
+            </h2>
+          </div>
+
+          <div className="bg-white p-6 rounded-xl shadow">
+            <p className="text-gray-500 text-sm">
+              Total de Pedidos
+            </p>
+            <h2 className="text-2xl font-bold">
+              {metrics.totalOrders}
             </h2>
           </div>
         </div>
