@@ -43,24 +43,45 @@ export default function OrdersPage() {
     setOrders(data || []);
   }
 
+  // ✅ FUNÇÃO CORRIGIDA E BLINDADA
   async function handleCreate(e: React.FormEvent) {
     e.preventDefault();
 
     if (!user) return;
 
-    const { data: profile } = await supabase
+    console.log("USER ID:", user.id);
+
+    const { data: profile, error: profileError } = await supabase
       .from("profiles")
       .select("tenant_id")
       .eq("id", user.id)
       .single();
 
-    if (!profile) return alert("Erro ao buscar tenant");
+    console.log("PROFILE:", profile);
+    console.log("PROFILE ERROR:", profileError);
 
-    await supabase.from("orders").insert({
+    if (profileError || !profile) {
+      alert("Erro ao buscar tenant_id do usuário");
+      return;
+    }
+
+    if (!profile.tenant_id) {
+      alert("tenant_id está NULL no profile");
+      return;
+    }
+
+    const { error } = await supabase.from("orders").insert({
       customer_name: customerName,
       total: Number(total),
       tenant_id: profile.tenant_id,
+      status: "pendente",
     });
+
+    if (error) {
+      console.log("INSERT ERROR:", error);
+      alert("Erro ao criar pedido");
+      return;
+    }
 
     setCustomerName("");
     setTotal("");
