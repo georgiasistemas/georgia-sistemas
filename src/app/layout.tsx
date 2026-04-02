@@ -1,12 +1,5 @@
-"use client";
-
 import "./globals.css";
-import { AuthProvider } from "@/contexts/AuthContext";
-import {
-  QueryClient,
-  QueryClientProvider,
-} from "@tanstack/react-query";
-import { useState } from "react";
+import Providers from "@/providers/Providers";
 
 export const metadata = {
   title: "Georgia Sistemas",
@@ -18,15 +11,10 @@ export default function RootLayout({
 }: {
   children: React.ReactNode;
 }) {
-  // 🔥 Evita recriar o client a cada render
-  const [queryClient] = useState(() => new QueryClient());
-
   return (
     <html lang="pt-BR">
       <body>
-        <QueryClientProvider client={queryClient}>
-          <AuthProvider>{children}</AuthProvider>
-        </QueryClientProvider>
+        <Providers>{children}</Providers>
       </body>
     </html>
   );
