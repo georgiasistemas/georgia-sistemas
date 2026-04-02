@@ -4,6 +4,14 @@ import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/contexts/AuthContext";
 
+type Order = {
+  id: string;
+  total: number;
+  status: string;
+  customer_name: string;
+  created_at: string;
+};
+
 export default function Dashboard() {
   const { user } = useAuth();
 
@@ -14,51 +22,67 @@ export default function Dashboard() {
     revenue: 0,
   });
 
+  const [orders, setOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
+  // 🔥 FUNÇÃO REUTILIZÁVEL
+  async function fetchData() {
     if (!user) return;
 
-    const fetchMetrics = async () => {
-      // Produtos (filtrado por tenant)
-      const { count: totalProducts } = await supabase
-        .from("products")
-        .select("*", { count: "exact", head: true })
-        .eq("tenant_id", user.id);
+    const { data: profile } = await supabase
+      .from("profiles")
+      .select("tenant_id")
+      .eq("id", user.id)
+      .single();
 
-      const { count: activeProducts } = await supabase
-        .from("products")
-        .select("*", { count: "exact", head: true })
-        .eq("tenant_id", user.id)
-        .eq("active", true);
+    if (!profile) return;
 
-      // Pedidos (filtrado por tenant)
-      const { data: orders } = await supabase
-        .from("orders")
-        .select("total")
-        .eq("tenant_id", user.id);
+    const tenantId = profile.tenant_id;
 
-      const totalOrders = orders?.length || 0;
+    // Produtos
+    const { count: totalProducts } = await supabase
+      .from("products")
+      .select("*", { count: "exact", head: true })
+      .eq("tenant_id", tenantId);
 
-      // Receita
-      const revenue =
-        orders?.reduce((acc, order) => acc + Number(order.total), 0) || 0;
+    const { count: activeProducts } = await supabase
+      .from("products")
+      .select("*", { count: "exact", head: true })
+      .eq("tenant_id", tenantId)
+      .eq("active", true);
 
-      setMetrics({
-        totalProducts: totalProducts || 0,
-        activeProducts: activeProducts || 0,
-        totalOrders,
-        revenue,
-      });
+    // Pedidos
+    const { data: ordersData } = await supabase
+      .from("orders")
+      .select("*")
+      .eq("tenant_id", tenantId)
+      .order("created_at", { ascending: false })
+      .limit(5);
 
-      setLoading(false);
-    };
+    const totalOrders = ordersData?.length || 0;
 
-    fetchMetrics();
+    const revenue =
+      ordersData?.reduce((acc, order) => acc + Number(order.total), 0) || 0;
+
+    setMetrics({
+      totalProducts: totalProducts || 0,
+      activeProducts: activeProducts || 0,
+      totalOrders,
+      revenue,
+    });
+
+    setOrders(ordersData || []);
+    setLoading(false);
+  }
+
+  // 🔄 CHAMA AO CARREGAR
+  useEffect(() => {
+    if (!user) return;
+    fetchData();
   }, [user]);
 
   if (!user) {
-    return <p className="p-10">Carregando usuário...</p>;
+    return <p className="p-10">Carregando...</p>;
   }
 
   return (
@@ -76,43 +100,74 @@ export default function Dashboard() {
       {loading ? (
         <p>Carregando métricas...</p>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-          <div className="bg-white p-6 rounded-xl shadow">
-            <p className="text-gray-500 text-sm">
-              Total de Produtos
-            </p>
-            <h2 className="text-2xl font-bold">
-              {metrics.totalProducts}
-            </h2>
+        <>
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+            <div className="bg-white p-6 rounded-xl shadow">
+              <p className="text-gray-500 text-sm">Produtos</p>
+              <h2 className="text-2xl font-bold">
+                {metrics.totalProducts}
+              </h2>
+            </div>
+
+            <div className="bg-white p-6 rounded-xl shadow">
+              <p className="text-gray-500 text-sm">Ativos</p>
+              <h2 className="text-2xl font-bold">
+                {metrics.activeProducts}
+              </h2>
+            </div>
+
+            <div className="bg-white p-6 rounded-xl shadow">
+              <p className="text-gray-500 text-sm">Pedidos</p>
+              <h2 className="text-2xl font-bold">
+                {metrics.totalOrders}
+              </h2>
+            </div>
+
+            <div className="bg-white p-6 rounded-xl shadow">
+              <p className="text-gray-500 text-sm">Receita</p>
+              <h2 className="text-2xl font-bold text-green-600">
+                R$ {metrics.revenue.toFixed(2)}
+              </h2>
+            </div>
           </div>
 
+          {/* Últimos pedidos */}
           <div className="bg-white p-6 rounded-xl shadow">
-            <p className="text-gray-500 text-sm">
-              Produtos Ativos
-            </p>
-            <h2 className="text-2xl font-bold">
-              {metrics.activeProducts}
+            <h2 className="text-xl font-semibold mb-4">
+              Últimos pedidos
             </h2>
-          </div>
 
-          <div className="bg-white p-6 rounded-xl shadow">
-            <p className="text-gray-500 text-sm">
-              Total de Pedidos
-            </p>
-            <h2 className="text-2xl font-bold">
-              {metrics.totalOrders}
-            </h2>
-          </div>
+            {orders.length === 0 ? (
+              <p className="text-gray-500">
+                Nenhum pedido ainda
+              </p>
+            ) : (
+              <ul className="space-y-3">
+                {orders.map((order) => (
+                  <li
+                    key={order.id}
+                    className="flex justify-between border-b pb-2"
+                  >
+                    <div>
+                      <p className="font-medium">
+                        {order.customer_name || "Sem nome"}
+                      </p>
+                      <p className="text-sm text-gray-500">
+                        {order.status}
+                      </p>
+                    </div>
 
-          <div className="bg-white p-6 rounded-xl shadow">
-            <p className="text-gray-500 text-sm">
-              Receita Total
-            </p>
-            <h2 className="text-2xl font-bold text-green-600">
-              R$ {metrics.revenue.toFixed(2)}
-            </h2>
+                    <div className="text-right">
+                      <p className="font-bold">
+                        R$ {order.total}
+                      </p>
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            )}
           </div>
-        </div>
+        </>
       )}
     </div>
   );
