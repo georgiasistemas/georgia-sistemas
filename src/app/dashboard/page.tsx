@@ -2,8 +2,11 @@
 
 import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabase";
+import { useAuth } from "@/contexts/AuthContext";
 
 export default function Dashboard() {
+  const { user } = useAuth();
+
   const [metrics, setMetrics] = useState({
     totalProducts: 0,
     activeProducts: 0,
@@ -14,21 +17,26 @@ export default function Dashboard() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    if (!user) return;
+
     const fetchMetrics = async () => {
-      // Produtos
+      // Produtos (filtrado por tenant)
       const { count: totalProducts } = await supabase
         .from("products")
-        .select("*", { count: "exact", head: true });
+        .select("*", { count: "exact", head: true })
+        .eq("tenant_id", user.id);
 
       const { count: activeProducts } = await supabase
         .from("products")
         .select("*", { count: "exact", head: true })
+        .eq("tenant_id", user.id)
         .eq("active", true);
 
-      // Pedidos
+      // Pedidos (filtrado por tenant)
       const { data: orders } = await supabase
         .from("orders")
-        .select("total");
+        .select("total")
+        .eq("tenant_id", user.id);
 
       const totalOrders = orders?.length || 0;
 
@@ -47,7 +55,11 @@ export default function Dashboard() {
     };
 
     fetchMetrics();
-  }, []);
+  }, [user]);
+
+  if (!user) {
+    return <p className="p-10">Carregando usuário...</p>;
+  }
 
   return (
     <div className="p-10 bg-gray-100 min-h-screen">
