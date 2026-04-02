@@ -3,6 +3,15 @@
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/lib/supabase";
 import { useQuery } from "@tanstack/react-query";
+import {
+  LineChart,
+  Line,
+  XAxis,
+  YAxis,
+  Tooltip,
+  ResponsiveContainer,
+} from "recharts";
+import dayjs from "dayjs";
 
 type Order = {
   id: string;
@@ -15,7 +24,7 @@ type Order = {
 export default function Dashboard() {
   const { user } = useAuth();
 
-  // 🔥 FUNÇÃO DE BUSCA (sua lógica original preservada)
+  // 🔥 FUNÇÃO COMPLETA (mantendo sua lógica + BI)
   async function fetchData() {
     if (!user) return null;
 
@@ -41,7 +50,13 @@ export default function Dashboard() {
       .eq("tenant_id", tenantId)
       .eq("active", true);
 
-    // Pedidos
+    // 🔥 TODOS OS PEDIDOS (para gráfico)
+    const { data: allOrders } = await supabase
+      .from("orders")
+      .select("*")
+      .eq("tenant_id", tenantId);
+
+    // 🔥 ÚLTIMOS PEDIDOS (igual você já tinha)
     const { data: ordersData } = await supabase
       .from("orders")
       .select("*")
@@ -49,10 +64,29 @@ export default function Dashboard() {
       .order("created_at", { ascending: false })
       .limit(5);
 
-    const totalOrders = ordersData?.length || 0;
+    // 🔥 AGRUPAR POR DATA
+    const grouped: Record<string, number> = {};
+
+    allOrders?.forEach((order) => {
+      const date = dayjs(order.created_at).format("DD/MM");
+      grouped[date] = (grouped[date] || 0) + Number(order.total);
+    });
+
+    const chartData = Object.entries(grouped)
+      .map(([date, total]) => ({ date, total }))
+      .sort((a, b) => {
+        const [d1, m1] = a.date.split("/");
+        const [d2, m2] = b.date.split("/");
+        return Number(m1 + d1) - Number(m2 + d2);
+      });
+
+    const chart7 = chartData.slice(-7);
+    const chart30 = chartData.slice(-30);
+
+    const totalOrders = allOrders?.length || 0;
 
     const revenue =
-      ordersData?.reduce((acc, order) => acc + Number(order.total), 0) || 0;
+      allOrders?.reduce((acc, o) => acc + Number(o.total), 0) || 0;
 
     return {
       metrics: {
@@ -62,6 +96,8 @@ export default function Dashboard() {
         revenue,
       },
       orders: ordersData || [],
+      chart7,
+      chart30,
     };
   }
 
@@ -70,7 +106,7 @@ export default function Dashboard() {
     queryKey: ["dashboard", user?.id],
     queryFn: fetchData,
     enabled: !!user,
-    refetchInterval: 5000, // 🔥 atualiza automaticamente
+    refetchInterval: 5000,
     staleTime: 10000,
     refetchOnWindowFocus: true,
   });
@@ -83,7 +119,7 @@ export default function Dashboard() {
     return <p className="p-10">Carregando métricas...</p>;
   }
 
-  const { metrics, orders } = data;
+  const { metrics, orders, chart7, chart30 } = data;
 
   return (
     <div className="p-10 bg-gray-100 min-h-screen">
@@ -96,7 +132,7 @@ export default function Dashboard() {
         </p>
       </div>
 
-      {/* Métricas */}
+      {/* MÉTRICAS */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
         <div className="bg-white p-6 rounded-xl shadow">
           <p className="text-gray-500 text-sm">Produtos</p>
@@ -125,6 +161,38 @@ export default function Dashboard() {
             R$ {metrics.revenue.toFixed(2)}
           </h2>
         </div>
+      </div>
+
+      {/* 🔥 GRÁFICO 7 DIAS */}
+      <div className="bg-white p-6 rounded-xl shadow mb-6">
+        <h2 className="font-semibold mb-4">
+          Receita - últimos 7 dias
+        </h2>
+
+        <ResponsiveContainer width="100%" height={300}>
+          <LineChart data={chart7}>
+            <XAxis dataKey="date" />
+            <YAxis />
+            <Tooltip />
+            <Line type="monotone" dataKey="total" />
+          </LineChart>
+        </ResponsiveContainer>
+      </div>
+
+      {/* 🔥 GRÁFICO 30 DIAS */}
+      <div className="bg-white p-6 rounded-xl shadow mb-6">
+        <h2 className="font-semibold mb-4">
+          Receita - últimos 30 dias
+        </h2>
+
+        <ResponsiveContainer width="100%" height={300}>
+          <LineChart data={chart30}>
+            <XAxis dataKey="date" />
+            <YAxis />
+            <Tooltip />
+            <Line type="monotone" dataKey="total" />
+          </LineChart>
+        </ResponsiveContainer>
       </div>
 
       {/* Últimos pedidos */}
