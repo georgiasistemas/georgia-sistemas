@@ -140,7 +140,7 @@ export default function OrdersPage() {
           required
         />
 
-        <Button>Criar Pedido</Button>
+        <Button type="submit">Criar Pedido</Button>
       </form>
 
       {/* LISTA */}
