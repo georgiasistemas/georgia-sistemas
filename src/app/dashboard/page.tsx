@@ -24,7 +24,6 @@ type Order = {
 export default function Dashboard() {
   const { user } = useAuth();
 
-  // 🔥 FUNÇÃO COMPLETA (mantendo sua lógica + BI)
   async function fetchData() {
     if (!user) return null;
 
@@ -50,13 +49,13 @@ export default function Dashboard() {
       .eq("tenant_id", tenantId)
       .eq("active", true);
 
-    // 🔥 TODOS OS PEDIDOS (para gráfico)
+    // 🔥 TODOS OS PEDIDOS
     const { data: allOrders } = await supabase
       .from("orders")
       .select("*")
       .eq("tenant_id", tenantId);
 
-    // 🔥 ÚLTIMOS PEDIDOS (igual você já tinha)
+    // 🔥 ÚLTIMOS PEDIDOS
     const { data: ordersData } = await supabase
       .from("orders")
       .select("*")
@@ -64,7 +63,63 @@ export default function Dashboard() {
       .order("created_at", { ascending: false })
       .limit(5);
 
-    // 🔥 AGRUPAR POR DATA
+    // 🔥 MÉTRICAS BASE
+    const totalOrders = allOrders?.length || 0;
+
+    const revenue =
+      allOrders?.reduce((acc, o) => acc + Number(o.total), 0) || 0;
+
+    const ticketAverage =
+      totalOrders > 0 ? revenue / totalOrders : 0;
+
+    // 🔥 MÊS ATUAL
+    const currentMonth = dayjs().month();
+    const currentYear = dayjs().year();
+
+    const currentMonthOrders =
+      allOrders?.filter((o) => {
+        const date = dayjs(o.created_at);
+        return (
+          date.month() === currentMonth &&
+          date.year() === currentYear
+        );
+      }) || [];
+
+    const currentMonthRevenue =
+      currentMonthOrders.reduce(
+        (acc, o) => acc + Number(o.total),
+        0
+      ) || 0;
+
+    // 🔥 MÊS ANTERIOR
+    const lastMonthDate = dayjs().subtract(1, "month");
+
+    const lastMonthOrders =
+      allOrders?.filter((o) => {
+        const date = dayjs(o.created_at);
+        return (
+          date.month() === lastMonthDate.month() &&
+          date.year() === lastMonthDate.year()
+        );
+      }) || [];
+
+    const lastMonthRevenue =
+      lastMonthOrders.reduce(
+        (acc, o) => acc + Number(o.total),
+        0
+      ) || 0;
+
+    // 🔥 VARIAÇÃO %
+    let growth = 0;
+
+    if (lastMonthRevenue > 0) {
+      growth =
+        ((currentMonthRevenue - lastMonthRevenue) /
+          lastMonthRevenue) *
+        100;
+    }
+
+    // 🔥 GRÁFICO
     const grouped: Record<string, number> = {};
 
     allOrders?.forEach((order) => {
@@ -80,71 +135,69 @@ export default function Dashboard() {
         return Number(m1 + d1) - Number(m2 + d2);
       });
 
-    const chart7 = chartData.slice(-7);
-    const chart30 = chartData.slice(-30);
-
-    const totalOrders = allOrders?.length || 0;
-
-    const revenue =
-      allOrders?.reduce((acc, o) => acc + Number(o.total), 0) || 0;
-
     return {
       metrics: {
         totalProducts: totalProducts || 0,
         activeProducts: activeProducts || 0,
         totalOrders,
         revenue,
+        ticketAverage,
+        currentMonthRevenue,
+        growth,
       },
       orders: ordersData || [],
-      chart7,
-      chart30,
+      chart7: chartData.slice(-7),
+      chart30: chartData.slice(-30),
     };
   }
 
-  // 🚀 REACT QUERY
   const { data, isLoading } = useQuery({
     queryKey: ["dashboard", user?.id],
     queryFn: fetchData,
     enabled: !!user,
     refetchInterval: 5000,
-    staleTime: 10000,
-    refetchOnWindowFocus: true,
   });
 
-  if (!user) {
+  if (!user) return <p className="p-10">Carregando...</p>;
+  if (isLoading || !data)
     return <p className="p-10">Carregando...</p>;
-  }
-
-  if (isLoading || !data) {
-    return <p className="p-10">Carregando métricas...</p>;
-  }
 
   const { metrics, orders, chart7, chart30 } = data;
 
   return (
     <div className="p-10 bg-gray-100 min-h-screen">
-      <h1 className="text-3xl font-bold mb-4">Dashboard</h1>
+      <h1 className="text-3xl font-bold mb-6">Dashboard</h1>
 
-      {/* Boas-vindas */}
-      <div className="bg-white p-6 rounded-xl shadow mb-6">
-        <p className="text-gray-700">
-          Bem-vindo ao sistema 🎉
-        </p>
-      </div>
-
-      {/* MÉTRICAS */}
+      {/* 🔥 KPIs PROFISSIONAIS */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
         <div className="bg-white p-6 rounded-xl shadow">
-          <p className="text-gray-500 text-sm">Produtos</p>
-          <h2 className="text-2xl font-bold">
-            {metrics.totalProducts}
+          <p className="text-gray-500 text-sm">Receita Total</p>
+          <h2 className="text-2xl font-bold text-green-600">
+            R$ {metrics.revenue.toFixed(2)}
           </h2>
         </div>
 
         <div className="bg-white p-6 rounded-xl shadow">
-          <p className="text-gray-500 text-sm">Ativos</p>
+          <p className="text-gray-500 text-sm">Este mês</p>
           <h2 className="text-2xl font-bold">
-            {metrics.activeProducts}
+            R$ {metrics.currentMonthRevenue.toFixed(2)}
+          </h2>
+          <p
+            className={`text-sm ${
+              metrics.growth >= 0
+                ? "text-green-600"
+                : "text-red-600"
+            }`}
+          >
+            {metrics.growth >= 0 ? "↑" : "↓"}{" "}
+            {metrics.growth.toFixed(1)}%
+          </p>
+        </div>
+
+        <div className="bg-white p-6 rounded-xl shadow">
+          <p className="text-gray-500 text-sm">Ticket médio</p>
+          <h2 className="text-2xl font-bold">
+            R$ {metrics.ticketAverage.toFixed(2)}
           </h2>
         </div>
 
@@ -154,19 +207,12 @@ export default function Dashboard() {
             {metrics.totalOrders}
           </h2>
         </div>
-
-        <div className="bg-white p-6 rounded-xl shadow">
-          <p className="text-gray-500 text-sm">Receita</p>
-          <h2 className="text-2xl font-bold text-green-600">
-            R$ {metrics.revenue.toFixed(2)}
-          </h2>
-        </div>
       </div>
 
-      {/* 🔥 GRÁFICO 7 DIAS */}
+      {/* GRÁFICO 7 DIAS */}
       <div className="bg-white p-6 rounded-xl shadow mb-6">
-        <h2 className="font-semibold mb-4">
-          Receita - últimos 7 dias
+        <h2 className="mb-4 font-semibold">
+          Últimos 7 dias
         </h2>
 
         <ResponsiveContainer width="100%" height={300}>
@@ -179,10 +225,10 @@ export default function Dashboard() {
         </ResponsiveContainer>
       </div>
 
-      {/* 🔥 GRÁFICO 30 DIAS */}
+      {/* GRÁFICO 30 DIAS */}
       <div className="bg-white p-6 rounded-xl shadow mb-6">
-        <h2 className="font-semibold mb-4">
-          Receita - últimos 30 dias
+        <h2 className="mb-4 font-semibold">
+          Últimos 30 dias
         </h2>
 
         <ResponsiveContainer width="100%" height={300}>
@@ -195,7 +241,7 @@ export default function Dashboard() {
         </ResponsiveContainer>
       </div>
 
-      {/* Últimos pedidos */}
+      {/* ÚLTIMOS PEDIDOS */}
       <div className="bg-white p-6 rounded-xl shadow">
         <h2 className="text-xl font-semibold mb-4">
           Últimos pedidos
