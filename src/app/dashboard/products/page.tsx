@@ -11,6 +11,7 @@ type Product = {
   name: string;
   price: number;
   image_url?: string | null;
+  description?: string | null;
 };
 
 export default function ProductsPage() {
@@ -19,10 +20,12 @@ export default function ProductsPage() {
   const [products, setProducts] = useState<Product[]>([]);
   const [name, setName] = useState("");
   const [price, setPrice] = useState("");
+  const [description, setDescription] = useState("");
   const [editingId, setEditingId] = useState<string | null>(null);
 
   const [imageFile, setImageFile] = useState<File | null>(null);
   const [imageUrl, setImageUrl] = useState("");
+  const [preview, setPreview] = useState<string | null>(null);
 
   useEffect(() => {
     fetchProducts();
@@ -62,7 +65,7 @@ export default function ProductsPage() {
 
     let finalImageUrl = imageUrl;
 
-    // 🔥 SE TEM IMAGEM → PROCESSA
+    // 🔥 PROCESSAMENTO DE IMAGEM
     if (imageFile) {
       if (imageFile.size > 2 * 1024 * 1024) {
         alert("Imagem deve ter no máximo 2MB");
@@ -100,6 +103,7 @@ export default function ProductsPage() {
         .update({
           name,
           price: Number(price),
+          description,
           ...(finalImageUrl && { image_url: finalImageUrl }),
         })
         .eq("id", editingId);
@@ -109,15 +113,19 @@ export default function ProductsPage() {
       await supabase.from("products").insert({
         name,
         price: Number(price),
+        description,
         tenant_id: profile.tenant_id,
         image_url: finalImageUrl || null,
       });
     }
 
+    // LIMPA FORM
     setName("");
     setPrice("");
+    setDescription("");
     setImageFile(null);
     setImageUrl("");
+    setPreview(null);
 
     fetchProducts();
   }
@@ -125,8 +133,10 @@ export default function ProductsPage() {
   function handleEdit(product: Product) {
     setName(product.name);
     setPrice(String(product.price));
+    setDescription(product.description || "");
     setEditingId(product.id);
     setImageUrl(product.image_url || "");
+    setPreview(product.image_url || null);
   }
 
   async function handleDelete(id: string) {
@@ -163,21 +173,45 @@ export default function ProductsPage() {
           required
         />
 
+        <textarea
+          placeholder="Descrição do produto"
+          value={description}
+          onChange={(e) => setDescription(e.target.value)}
+          className="border p-2 rounded"
+        />
+
         {/* UPLOAD */}
         <input
           type="file"
           accept="image/*"
-          onChange={(e) =>
-            setImageFile(e.target.files?.[0] || null)
-          }
+          onChange={(e) => {
+            const file = e.target.files?.[0] || null;
+            setImageFile(file);
+
+            if (file) {
+              const previewUrl = URL.createObjectURL(file);
+              setPreview(previewUrl);
+            }
+          }}
         />
+
+        {/* PREVIEW */}
+        {preview && (
+          <img
+            src={preview}
+            className="w-24 h-24 object-cover rounded"
+          />
+        )}
 
         {/* URL */}
         <input
           type="text"
           placeholder="Ou URL da imagem"
           value={imageUrl}
-          onChange={(e) => setImageUrl(e.target.value)}
+          onChange={(e) => {
+            setImageUrl(e.target.value);
+            setPreview(e.target.value);
+          }}
           className="border p-2 rounded"
         />
 
@@ -193,6 +227,7 @@ export default function ProductsPage() {
             <tr className="border-b">
               <th className="p-2">Imagem</th>
               <th className="p-2">Nome</th>
+              <th className="p-2">Descrição</th>
               <th className="p-2">Preço</th>
               <th className="p-2">Ações</th>
             </tr>
@@ -211,6 +246,7 @@ export default function ProductsPage() {
                 </td>
 
                 <td className="p-2">{product.name}</td>
+                <td className="p-2">{product.description}</td>
                 <td className="p-2">R$ {product.price}</td>
 
                 <td className="p-2 flex gap-2">
@@ -233,7 +269,7 @@ export default function ProductsPage() {
 
             {products.length === 0 && (
               <tr>
-                <td colSpan={4} className="p-4 text-center text-gray-500">
+                <td colSpan={5} className="p-4 text-center text-gray-500">
                   Nenhum produto cadastrado
                 </td>
               </tr>
