@@ -4,11 +4,13 @@ import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/contexts/AuthContext";
 import Button from "@/components/ui/Button";
+import imageCompression from "browser-image-compression";
 
 type Product = {
   id: string;
   name: string;
   price: number;
+  image_url?: string | null;
 };
 
 export default function ProductsPage() {
@@ -18,6 +20,9 @@ export default function ProductsPage() {
   const [name, setName] = useState("");
   const [price, setPrice] = useState("");
   const [editingId, setEditingId] = useState<string | null>(null);
+
+  const [imageFile, setImageFile] = useState<File | null>(null);
+  const [imageUrl, setImageUrl] = useState("");
 
   useEffect(() => {
     fetchProducts();
@@ -55,12 +60,47 @@ export default function ProductsPage() {
 
     if (!profile) return alert("Erro ao buscar tenant");
 
+    let finalImageUrl = imageUrl;
+
+    // 🔥 SE TEM IMAGEM → PROCESSA
+    if (imageFile) {
+      if (imageFile.size > 2 * 1024 * 1024) {
+        alert("Imagem deve ter no máximo 2MB");
+        return;
+      }
+
+      const compressedFile = await imageCompression(imageFile, {
+        maxSizeMB: 1,
+        maxWidthOrHeight: 800,
+        useWebWorker: true,
+      });
+
+      const fileName = `${profile.tenant_id}/${Date.now()}-${compressedFile.name}`;
+
+      const { error: uploadError } = await supabase.storage
+        .from("products")
+        .upload(fileName, compressedFile);
+
+      if (uploadError) {
+        console.log(uploadError);
+        alert("Erro no upload da imagem");
+        return;
+      }
+
+      const { data } = supabase.storage
+        .from("products")
+        .getPublicUrl(fileName);
+
+      finalImageUrl = data.publicUrl;
+    }
+
     if (editingId) {
       await supabase
         .from("products")
         .update({
           name,
           price: Number(price),
+          ...(finalImageUrl && { image_url: finalImageUrl }),
         })
         .eq("id", editingId);
 
@@ -70,18 +110,23 @@ export default function ProductsPage() {
         name,
         price: Number(price),
         tenant_id: profile.tenant_id,
+        image_url: finalImageUrl || null,
       });
     }
 
     setName("");
     setPrice("");
+    setImageFile(null);
+    setImageUrl("");
+
     fetchProducts();
   }
 
-  async function handleEdit(product: Product) {
+  function handleEdit(product: Product) {
     setName(product.name);
     setPrice(String(product.price));
     setEditingId(product.id);
+    setImageUrl(product.image_url || "");
   }
 
   async function handleDelete(id: string) {
@@ -118,6 +163,24 @@ export default function ProductsPage() {
           required
         />
 
+        {/* UPLOAD */}
+        <input
+          type="file"
+          accept="image/*"
+          onChange={(e) =>
+            setImageFile(e.target.files?.[0] || null)
+          }
+        />
+
+        {/* URL */}
+        <input
+          type="text"
+          placeholder="Ou URL da imagem"
+          value={imageUrl}
+          onChange={(e) => setImageUrl(e.target.value)}
+          className="border p-2 rounded"
+        />
+
         <Button type="submit">
           {editingId ? "Atualizar Produto" : "Cadastrar Produto"}
         </Button>
@@ -128,6 +191,7 @@ export default function ProductsPage() {
         <table className="w-full text-left">
           <thead>
             <tr className="border-b">
+              <th className="p-2">Imagem</th>
               <th className="p-2">Nome</th>
               <th className="p-2">Preço</th>
               <th className="p-2">Ações</th>
@@ -137,6 +201,15 @@ export default function ProductsPage() {
           <tbody>
             {products.map((product) => (
               <tr key={product.id} className="border-b">
+                <td className="p-2">
+                  {product.image_url && (
+                    <img
+                      src={product.image_url}
+                      className="w-12 h-12 object-cover rounded"
+                    />
+                  )}
+                </td>
+
                 <td className="p-2">{product.name}</td>
                 <td className="p-2">R$ {product.price}</td>
 
@@ -150,7 +223,7 @@ export default function ProductsPage() {
 
                   <Button
                     onClick={() => handleDelete(product.id)}
-                    className="!px-3 !py-1 text-sm bg-red-500 hover:opacity-80"
+                    className="!px-3 !py-1 text-sm bg-red-500"
                   >
                     Excluir
                   </Button>
@@ -160,7 +233,7 @@ export default function ProductsPage() {
 
             {products.length === 0 && (
               <tr>
-                <td colSpan={3} className="p-4 text-center text-gray-500">
+                <td colSpan={4} className="p-4 text-center text-gray-500">
                   Nenhum produto cadastrado
                 </td>
               </tr>
