@@ -8,6 +8,7 @@ export default function Dashboard() {
     totalProducts: 0,
     activeProducts: 0,
     totalOrders: 0,
+    revenue: 0,
   });
 
   const [loading, setLoading] = useState(true);
@@ -25,14 +26,21 @@ export default function Dashboard() {
         .eq("active", true);
 
       // Pedidos
-      const { count: totalOrders } = await supabase
+      const { data: orders } = await supabase
         .from("orders")
-        .select("*", { count: "exact", head: true });
+        .select("total");
+
+      const totalOrders = orders?.length || 0;
+
+      // Receita
+      const revenue =
+        orders?.reduce((acc, order) => acc + Number(order.total), 0) || 0;
 
       setMetrics({
         totalProducts: totalProducts || 0,
         activeProducts: activeProducts || 0,
-        totalOrders: totalOrders || 0,
+        totalOrders,
+        revenue,
       });
 
       setLoading(false);
@@ -56,7 +64,7 @@ export default function Dashboard() {
       {loading ? (
         <p>Carregando métricas...</p>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
           <div className="bg-white p-6 rounded-xl shadow">
             <p className="text-gray-500 text-sm">
               Total de Produtos
@@ -81,6 +89,15 @@ export default function Dashboard() {
             </p>
             <h2 className="text-2xl font-bold">
               {metrics.totalOrders}
+            </h2>
+          </div>
+
+          <div className="bg-white p-6 rounded-xl shadow">
+            <p className="text-gray-500 text-sm">
+              Receita Total
+            </p>
+            <h2 className="text-2xl font-bold text-green-600">
+              R$ {metrics.revenue.toFixed(2)}
             </h2>
           </div>
         </div>
