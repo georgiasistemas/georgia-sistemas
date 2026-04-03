@@ -19,12 +19,20 @@ type Group = {
   name: string;
 };
 
+type Category = {
+  id: string;
+  name: string;
+};
+
 export default function ProductsPage() {
   const { user } = useAuth();
 
   const [products, setProducts] = useState<Product[]>([]);
   const [groups, setGroups] = useState<Group[]>([]);
+  const [categories, setCategories] = useState<Category[]>([]);
+
   const [selectedGroups, setSelectedGroups] = useState<string[]>([]);
+  const [categoryId, setCategoryId] = useState("");
 
   const [name, setName] = useState("");
   const [price, setPrice] = useState("");
@@ -35,10 +43,37 @@ export default function ProductsPage() {
   const [imageUrl, setImageUrl] = useState("");
   const [preview, setPreview] = useState<string | null>(null);
 
+  // 🔥 MODAL
+  const [showGroupModal, setShowGroupModal] = useState(false);
+  const [groupName, setGroupName] = useState("");
+  const [groupRequired, setGroupRequired] = useState(false);
+  const [minSelect, setMinSelect] = useState(0);
+  const [maxSelect, setMaxSelect] = useState(1);
+
   useEffect(() => {
     fetchProducts();
     fetchGroups();
+    fetchCategories();
   }, [user]);
+
+  async function fetchCategories() {
+    if (!user) return;
+
+    const { data: profile } = await supabase
+      .from("profiles")
+      .select("tenant_id")
+      .eq("id", user.id)
+      .single();
+
+    if (!profile) return;
+
+    const { data } = await supabase
+      .from("categories")
+      .select("*")
+      .eq("tenant_id", profile.tenant_id);
+
+    setCategories(data || []);
+  }
 
   async function fetchGroups() {
     if (!user) return;
@@ -86,6 +121,43 @@ export default function ProductsPage() {
     );
   }
 
+  async function createGroup() {
+    if (!user) return;
+
+    const { data: profile } = await supabase
+      .from("profiles")
+      .select("tenant_id")
+      .eq("id", user.id)
+      .single();
+
+    if (!profile) return;
+
+    const { data } = await supabase
+      .from("product_groups")
+      .insert({
+        name: groupName,
+        required: groupRequired,
+        min_select: minSelect,
+        max_select: maxSelect,
+        tenant_id: profile.tenant_id,
+      })
+      .select()
+      .single();
+
+    setShowGroupModal(false);
+    setGroupName("");
+    setGroupRequired(false);
+    setMinSelect(0);
+    setMaxSelect(1);
+
+    fetchGroups();
+
+    // já seleciona automaticamente
+    if (data) {
+      setSelectedGroups((prev) => [...prev, data.id]);
+    }
+  }
+
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
 
@@ -102,11 +174,6 @@ export default function ProductsPage() {
     let finalImageUrl = imageUrl;
 
     if (imageFile) {
-      if (imageFile.size > 2 * 1024 * 1024) {
-        alert("Imagem deve ter no máximo 2MB");
-        return;
-      }
-
       const compressedFile = await imageCompression(imageFile, {
         maxSizeMB: 1,
         maxWidthOrHeight: 800,
@@ -133,6 +200,7 @@ export default function ProductsPage() {
           name,
           price: Number(price),
           description,
+          category_id: categoryId || null,
           ...(finalImageUrl && { image_url: finalImageUrl }),
         })
         .eq("id", editingId);
@@ -144,6 +212,7 @@ export default function ProductsPage() {
           price: Number(price),
           description,
           tenant_id: profile.tenant_id,
+          category_id: categoryId || null,
           image_url: finalImageUrl || null,
         })
         .select()
@@ -152,47 +221,31 @@ export default function ProductsPage() {
       productId = data.id;
     }
 
-    // salvar grupos
     await supabase
       .from("product_group_links")
       .delete()
       .eq("product_id", productId);
 
     if (selectedGroups.length > 0) {
-      const inserts = selectedGroups.map((groupId) => ({
-        product_id: productId,
-        group_id: groupId,
-      }));
-
-      await supabase.from("product_group_links").insert(inserts);
+      await supabase.from("product_group_links").insert(
+        selectedGroups.map((g) => ({
+          product_id: productId,
+          group_id: g,
+        }))
+      );
     }
 
     // reset
     setName("");
     setPrice("");
     setDescription("");
+    setCategoryId("");
+    setSelectedGroups([]);
+    setPreview(null);
     setImageFile(null);
     setImageUrl("");
-    setPreview(null);
-    setSelectedGroups([]);
     setEditingId(null);
 
-    fetchProducts();
-  }
-
-  function handleEdit(product: Product) {
-    setName(product.name);
-    setPrice(String(product.price));
-    setDescription(product.description || "");
-    setEditingId(product.id);
-    setImageUrl(product.image_url || "");
-    setPreview(product.image_url || null);
-  }
-
-  async function handleDelete(id: string) {
-    if (!confirm("Excluir produto?")) return;
-
-    await supabase.from("products").delete().eq("id", id);
     fetchProducts();
   }
 
@@ -200,18 +253,22 @@ export default function ProductsPage() {
     <div className="p-10 bg-gray-100 min-h-screen">
       <h1 className="text-3xl font-bold mb-6">Produtos</h1>
 
-      {/* FORM */}
       <form
         onSubmit={handleSubmit}
         className="bg-white p-6 rounded-xl shadow flex flex-col gap-4 max-w-md mb-8"
       >
         <input
-          type="text"
-          placeholder="Nome do produto"
+          placeholder="Nome"
           value={name}
           onChange={(e) => setName(e.target.value)}
           className="border p-2 rounded"
-          required
+        />
+
+        <textarea
+          placeholder="Descrição"
+          value={description}
+          onChange={(e) => setDescription(e.target.value)}
+          className="border p-2 rounded"
         />
 
         <input
@@ -220,106 +277,111 @@ export default function ProductsPage() {
           value={price}
           onChange={(e) => setPrice(e.target.value)}
           className="border p-2 rounded"
-          required
         />
 
-        <textarea
-          placeholder="Descrição do produto"
-          value={description}
-          onChange={(e) => setDescription(e.target.value)}
+        {/* CATEGORIA */}
+        <select
+          value={categoryId}
+          onChange={(e) => setCategoryId(e.target.value)}
           className="border p-2 rounded"
-        />
+        >
+          <option value="">Sem categoria</option>
+          {categories.map((c) => (
+            <option key={c.id} value={c.id}>
+              {c.name}
+            </option>
+          ))}
+        </select>
 
-        {/* 🔥 COMPLEMENTOS (UX PROFISSIONAL) */}
+        {/* COMPLEMENTOS */}
         <div className="bg-gray-50 p-4 rounded-xl border">
-          <div className="flex justify-between items-center mb-3">
+          <div className="flex justify-between mb-3">
             <p className="font-semibold">Complementos</p>
 
             <button
               type="button"
-              onClick={() => alert("Vamos criar o modal no próximo passo")}
-              className="text-sm bg-purple-600 text-white px-3 py-1 rounded-lg"
+              onClick={() => setShowGroupModal(true)}
+              className="bg-purple-600 text-white px-3 py-1 rounded-lg text-sm"
             >
               + Criar Grupo
             </button>
           </div>
 
-          {groups.length === 0 && (
-            <p className="text-gray-500 text-sm">
-              Nenhum grupo criado ainda
-            </p>
-          )}
-
-          <div className="flex flex-col gap-2">
-            {groups.map((group) => (
-              <label
-                key={group.id}
-                className="flex items-center justify-between bg-white p-3 rounded-lg border hover:shadow-sm transition"
-              >
-                <div className="flex items-center gap-2">
-                  <input
-                    type="checkbox"
-                    checked={selectedGroups.includes(group.id)}
-                    onChange={() => toggleGroup(group.id)}
-                  />
-                  <span>{group.name}</span>
-                </div>
-
-                <span className="text-xs text-gray-400">
-                  selecionar
-                </span>
-              </label>
-            ))}
-          </div>
+          {groups.map((group) => (
+            <label key={group.id} className="flex gap-2">
+              <input
+                type="checkbox"
+                checked={selectedGroups.includes(group.id)}
+                onChange={() => toggleGroup(group.id)}
+              />
+              {group.name}
+            </label>
+          ))}
         </div>
 
-        {/* IMAGEM */}
-        <input
-          type="file"
-          accept="image/*"
-          onChange={(e) => {
-            const file = e.target.files?.[0] || null;
+        <input type="file" onChange={(e) => {
+          const file = e.target.files?.[0];
+          if (file) {
             setImageFile(file);
+            setPreview(URL.createObjectURL(file));
+          }
+        }} />
 
-            if (file) {
-              const previewUrl = URL.createObjectURL(file);
-              setPreview(previewUrl);
-            }
-          }}
-        />
+        {preview && <img src={preview} className="w-24 h-24 rounded" />}
 
-        {preview && (
-          <img
-            src={preview}
-            className="w-24 h-24 object-cover rounded"
-          />
-        )}
-
-        <input
-          type="text"
-          placeholder="Ou URL da imagem"
-          value={imageUrl}
-          onChange={(e) => {
-            setImageUrl(e.target.value);
-            setPreview(e.target.value);
-          }}
-          className="border p-2 rounded"
-        />
-
-        <Button type="submit">
-          {editingId ? "Atualizar Produto" : "Cadastrar Produto"}
-        </Button>
+        <Button type="submit">Salvar Produto</Button>
       </form>
 
-      {/* LISTA */}
-      <div className="bg-white p-6 rounded-xl shadow">
-        {products.map((product) => (
-          <div key={product.id} className="border-b p-2">
-            <p className="font-bold">{product.name}</p>
-            <p>R$ {product.price}</p>
+      {/* MODAL */}
+      {showGroupModal && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center">
+          <div className="bg-white p-6 rounded-xl w-full max-w-md">
+            <h2 className="text-xl font-bold mb-4">Novo Grupo</h2>
+
+            <input
+              placeholder="Nome do grupo"
+              value={groupName}
+              onChange={(e) => setGroupName(e.target.value)}
+              className="border p-2 rounded w-full mb-2"
+            />
+
+            <label className="flex gap-2 mb-2">
+              <input
+                type="checkbox"
+                checked={groupRequired}
+                onChange={(e) => setGroupRequired(e.target.checked)}
+              />
+              Obrigatório
+            </label>
+
+            <input
+              type="number"
+              placeholder="Mínimo"
+              value={minSelect}
+              onChange={(e) => setMinSelect(Number(e.target.value))}
+              className="border p-2 rounded w-full mb-2"
+            />
+
+            <input
+              type="number"
+              placeholder="Máximo"
+              value={maxSelect}
+              onChange={(e) => setMaxSelect(Number(e.target.value))}
+              className="border p-2 rounded w-full mb-4"
+            />
+
+            <div className="flex justify-end gap-2">
+              <Button onClick={() => setShowGroupModal(false)}>
+                Cancelar
+              </Button>
+
+              <Button onClick={createGroup}>
+                Criar
+              </Button>
+            </div>
           </div>
-        ))}
-      </div>
+        </div>
+      )}
     </div>
   );
 }
