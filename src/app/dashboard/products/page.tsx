@@ -14,10 +14,18 @@ type Product = {
   description?: string | null;
 };
 
+type Group = {
+  id: string;
+  name: string;
+};
+
 export default function ProductsPage() {
   const { user } = useAuth();
 
   const [products, setProducts] = useState<Product[]>([]);
+  const [groups, setGroups] = useState<Group[]>([]);
+  const [selectedGroups, setSelectedGroups] = useState<string[]>([]);
+
   const [name, setName] = useState("");
   const [price, setPrice] = useState("");
   const [description, setDescription] = useState("");
@@ -29,7 +37,27 @@ export default function ProductsPage() {
 
   useEffect(() => {
     fetchProducts();
+    fetchGroups();
   }, [user]);
+
+  async function fetchGroups() {
+    if (!user) return;
+
+    const { data: profile } = await supabase
+      .from("profiles")
+      .select("tenant_id")
+      .eq("id", user.id)
+      .single();
+
+    if (!profile) return;
+
+    const { data } = await supabase
+      .from("product_groups")
+      .select("id, name")
+      .eq("tenant_id", profile.tenant_id);
+
+    setGroups(data || []);
+  }
 
   async function fetchProducts() {
     if (!user) return;
@@ -50,6 +78,14 @@ export default function ProductsPage() {
     setProducts(data || []);
   }
 
+  function toggleGroup(id: string) {
+    setSelectedGroups((prev) =>
+      prev.includes(id)
+        ? prev.filter((g) => g !== id)
+        : [...prev, id]
+    );
+  }
+
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
 
@@ -61,11 +97,10 @@ export default function ProductsPage() {
       .eq("id", user.id)
       .single();
 
-    if (!profile) return alert("Erro ao buscar tenant");
+    if (!profile) return;
 
     let finalImageUrl = imageUrl;
 
-    // 🔥 PROCESSAMENTO DE IMAGEM
     if (imageFile) {
       if (imageFile.size > 2 * 1024 * 1024) {
         alert("Imagem deve ter no máximo 2MB");
@@ -80,15 +115,7 @@ export default function ProductsPage() {
 
       const fileName = `${profile.tenant_id}/${Date.now()}-${compressedFile.name}`;
 
-      const { error: uploadError } = await supabase.storage
-        .from("products")
-        .upload(fileName, compressedFile);
-
-      if (uploadError) {
-        console.log(uploadError);
-        alert("Erro no upload da imagem");
-        return;
-      }
+      await supabase.storage.from("products").upload(fileName, compressedFile);
 
       const { data } = supabase.storage
         .from("products")
@@ -96,6 +123,8 @@ export default function ProductsPage() {
 
       finalImageUrl = data.publicUrl;
     }
+
+    let productId = editingId;
 
     if (editingId) {
       await supabase
@@ -107,25 +136,46 @@ export default function ProductsPage() {
           ...(finalImageUrl && { image_url: finalImageUrl }),
         })
         .eq("id", editingId);
-
-      setEditingId(null);
     } else {
-      await supabase.from("products").insert({
-        name,
-        price: Number(price),
-        description,
-        tenant_id: profile.tenant_id,
-        image_url: finalImageUrl || null,
-      });
+      const { data } = await supabase
+        .from("products")
+        .insert({
+          name,
+          price: Number(price),
+          description,
+          tenant_id: profile.tenant_id,
+          image_url: finalImageUrl || null,
+        })
+        .select()
+        .single();
+
+      productId = data.id;
     }
 
-    // LIMPA FORM
+    // salvar grupos
+    await supabase
+      .from("product_group_links")
+      .delete()
+      .eq("product_id", productId);
+
+    if (selectedGroups.length > 0) {
+      const inserts = selectedGroups.map((groupId) => ({
+        product_id: productId,
+        group_id: groupId,
+      }));
+
+      await supabase.from("product_group_links").insert(inserts);
+    }
+
+    // reset
     setName("");
     setPrice("");
     setDescription("");
     setImageFile(null);
     setImageUrl("");
     setPreview(null);
+    setSelectedGroups([]);
+    setEditingId(null);
 
     fetchProducts();
   }
@@ -140,7 +190,7 @@ export default function ProductsPage() {
   }
 
   async function handleDelete(id: string) {
-    if (!confirm("Deseja excluir este produto?")) return;
+    if (!confirm("Excluir produto?")) return;
 
     await supabase.from("products").delete().eq("id", id);
     fetchProducts();
@@ -180,7 +230,50 @@ export default function ProductsPage() {
           className="border p-2 rounded"
         />
 
-        {/* UPLOAD */}
+        {/* 🔥 COMPLEMENTOS (UX PROFISSIONAL) */}
+        <div className="bg-gray-50 p-4 rounded-xl border">
+          <div className="flex justify-between items-center mb-3">
+            <p className="font-semibold">Complementos</p>
+
+            <button
+              type="button"
+              onClick={() => alert("Vamos criar o modal no próximo passo")}
+              className="text-sm bg-purple-600 text-white px-3 py-1 rounded-lg"
+            >
+              + Criar Grupo
+            </button>
+          </div>
+
+          {groups.length === 0 && (
+            <p className="text-gray-500 text-sm">
+              Nenhum grupo criado ainda
+            </p>
+          )}
+
+          <div className="flex flex-col gap-2">
+            {groups.map((group) => (
+              <label
+                key={group.id}
+                className="flex items-center justify-between bg-white p-3 rounded-lg border hover:shadow-sm transition"
+              >
+                <div className="flex items-center gap-2">
+                  <input
+                    type="checkbox"
+                    checked={selectedGroups.includes(group.id)}
+                    onChange={() => toggleGroup(group.id)}
+                  />
+                  <span>{group.name}</span>
+                </div>
+
+                <span className="text-xs text-gray-400">
+                  selecionar
+                </span>
+              </label>
+            ))}
+          </div>
+        </div>
+
+        {/* IMAGEM */}
         <input
           type="file"
           accept="image/*"
@@ -195,7 +288,6 @@ export default function ProductsPage() {
           }}
         />
 
-        {/* PREVIEW */}
         {preview && (
           <img
             src={preview}
@@ -203,7 +295,6 @@ export default function ProductsPage() {
           />
         )}
 
-        {/* URL */}
         <input
           type="text"
           placeholder="Ou URL da imagem"
@@ -220,62 +311,14 @@ export default function ProductsPage() {
         </Button>
       </form>
 
-      {/* TABELA */}
+      {/* LISTA */}
       <div className="bg-white p-6 rounded-xl shadow">
-        <table className="w-full text-left">
-          <thead>
-            <tr className="border-b">
-              <th className="p-2">Imagem</th>
-              <th className="p-2">Nome</th>
-              <th className="p-2">Descrição</th>
-              <th className="p-2">Preço</th>
-              <th className="p-2">Ações</th>
-            </tr>
-          </thead>
-
-          <tbody>
-            {products.map((product) => (
-              <tr key={product.id} className="border-b">
-                <td className="p-2">
-                  {product.image_url && (
-                    <img
-                      src={product.image_url}
-                      className="w-12 h-12 object-cover rounded"
-                    />
-                  )}
-                </td>
-
-                <td className="p-2">{product.name}</td>
-                <td className="p-2">{product.description}</td>
-                <td className="p-2">R$ {product.price}</td>
-
-                <td className="p-2 flex gap-2">
-                  <Button
-                    onClick={() => handleEdit(product)}
-                    className="!px-3 !py-1 text-sm"
-                  >
-                    Editar
-                  </Button>
-
-                  <Button
-                    onClick={() => handleDelete(product.id)}
-                    className="!px-3 !py-1 text-sm bg-red-500"
-                  >
-                    Excluir
-                  </Button>
-                </td>
-              </tr>
-            ))}
-
-            {products.length === 0 && (
-              <tr>
-                <td colSpan={5} className="p-4 text-center text-gray-500">
-                  Nenhum produto cadastrado
-                </td>
-              </tr>
-            )}
-          </tbody>
-        </table>
+        {products.map((product) => (
+          <div key={product.id} className="border-b p-2">
+            <p className="font-bold">{product.name}</p>
+            <p>R$ {product.price}</p>
+          </div>
+        ))}
       </div>
     </div>
   );
