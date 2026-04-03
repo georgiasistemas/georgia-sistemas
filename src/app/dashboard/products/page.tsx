@@ -1,43 +1,18 @@
 "use client";
 
-import {
-  DndContext,
-  closestCenter,
-  PointerSensor,
-  useSensor,
-  useSensors,
-} from "@dnd-kit/core";
-
-import {
-  SortableContext,
-  useSortable,
-  arrayMove,
-  verticalListSortingStrategy,
-} from "@dnd-kit/sortable";
-
-import { CSS } from "@dnd-kit/utilities";
-
 import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/contexts/AuthContext";
 import Button from "@/components/ui/Button";
 import imageCompression from "browser-image-compression";
 
-// TYPES
-type Category = {
-  id: string;
-  name: string;
-  position: number;
-};
-
 type Product = {
   id: string;
   name: string;
   price: number;
-  category_id: string;
   image_url?: string | null;
   description?: string | null;
-  position: number;
+  category_id?: string | null;
 };
 
 type Group = {
@@ -45,316 +20,416 @@ type Group = {
   name: string;
 };
 
-// DRAG ITEM
-function SortableItem({ id, children }: any) {
-  const { attributes, listeners, setNodeRef, transform, transition } =
-    useSortable({ id });
-
-  return (
-    <div
-      ref={setNodeRef}
-      style={{
-        transform: CSS.Transform.toString(transform),
-        transition,
-      }}
-      {...attributes}
-      {...listeners}
-    >
-      {children}
-    </div>
-  );
-}
+type Category = {
+  id: string;
+  name: string;
+};
 
 export default function ProductsPage() {
   const { user } = useAuth();
 
-  const sensors = useSensors(useSensor(PointerSensor));
-
-  const [categories, setCategories] = useState<Category[]>([]);
   const [products, setProducts] = useState<Product[]>([]);
   const [groups, setGroups] = useState<Group[]>([]);
+  const [categories, setCategories] = useState<Category[]>([]);
 
-  // FORM (mantido)
+  const [selectedGroups, setSelectedGroups] = useState<string[]>([]);
+  const [categoryId, setCategoryId] = useState("");
+
   const [name, setName] = useState("");
   const [price, setPrice] = useState("");
   const [description, setDescription] = useState("");
-  const [categoryId, setCategoryId] = useState("");
-  const [selectedGroups, setSelectedGroups] = useState<string[]>([]);
-
-  const [imageFile, setImageFile] = useState<File | null>(null);
-  const [preview, setPreview] = useState<string | null>(null);
-
   const [editingId, setEditingId] = useState<string | null>(null);
 
-  // MODAIS
-  const [showCategoryModal, setShowCategoryModal] = useState(false);
-  const [categoryName, setCategoryName] = useState("");
+  const [imageFile, setImageFile] = useState<File | null>(null);
+  const [imageUrl, setImageUrl] = useState("");
+  const [preview, setPreview] = useState<string | null>(null);
 
+  // 🔥 MODAIS
   const [showGroupModal, setShowGroupModal] = useState(false);
+  const [showCategoryModal, setShowCategoryModal] = useState(false);
+
+  const [groupName, setGroupName] = useState("");
+  const [groupRequired, setGroupRequired] = useState(false);
+  const [minSelect, setMinSelect] = useState(0);
+  const [maxSelect, setMaxSelect] = useState(1);
+
+  const [newCategoryName, setNewCategoryName] = useState("");
 
   useEffect(() => {
-    fetchAll();
+    fetchProducts();
+    fetchGroups();
+    fetchCategories();
   }, [user]);
 
-  async function fetchAll() {
-    if (!user) return;
-
-    const { data: profile } = await supabase
+  async function getTenant() {
+    const { data } = await supabase
       .from("profiles")
       .select("tenant_id")
-      .eq("id", user.id)
+      .eq("id", user?.id)
       .single();
 
-    const tenantId = profile?.tenant_id;
+    return data?.tenant_id;
+  }
 
-    const { data: cat } = await supabase
+  async function fetchCategories() {
+    if (!user) return;
+    const tenantId = await getTenant();
+
+    const { data } = await supabase
       .from("categories")
       .select("*")
-      .eq("tenant_id", tenantId)
-      .order("position");
+      .eq("tenant_id", tenantId);
 
-    const { data: prod } = await supabase
-      .from("products")
-      .select("*")
-      .eq("tenant_id", tenantId)
-      .order("position");
+    setCategories(data || []);
+  }
 
-    const { data: grp } = await supabase
+  async function fetchGroups() {
+    if (!user) return;
+    const tenantId = await getTenant();
+
+    const { data } = await supabase
       .from("product_groups")
       .select("id, name")
       .eq("tenant_id", tenantId);
 
-    setCategories(cat || []);
-    setProducts(prod || []);
-    setGroups(grp || []);
+    setGroups(data || []);
   }
 
-  // CATEGORY CREATE
-  async function createCategory() {
+  async function fetchProducts() {
     if (!user) return;
+    const tenantId = await getTenant();
 
-    const { data: profile } = await supabase
-      .from("profiles")
-      .select("tenant_id")
-      .eq("id", user.id)
-      .single();
+    const { data } = await supabase
+      .from("products")
+      .select("*")
+      .eq("tenant_id", tenantId);
+
+    setProducts(data || []);
+  }
+
+  function toggleGroup(id: string) {
+    setSelectedGroups((prev) =>
+      prev.includes(id)
+        ? prev.filter((g) => g !== id)
+        : [...prev, id]
+    );
+  }
+
+  async function createCategory() {
+    const tenantId = await getTenant();
 
     await supabase.from("categories").insert({
-      name: categoryName,
-      tenant_id: profile?.tenant_id,
+      name: newCategoryName,
+      tenant_id: tenantId,
     });
 
-    setCategoryName("");
+    setNewCategoryName("");
     setShowCategoryModal(false);
-    fetchAll();
+    fetchCategories();
   }
 
-  // DRAG CATEGORY
-  async function handleCategoryDragEnd(event: any) {
-    const { active, over } = event;
-    if (!over) return;
+  async function createGroup() {
+    const tenantId = await getTenant();
 
-    if (active.id !== over.id) {
-      const oldIndex = categories.findIndex((c) => c.id === active.id);
-      const newIndex = categories.findIndex((c) => c.id === over.id);
+    const { data } = await supabase
+      .from("product_groups")
+      .insert({
+        name: groupName,
+        required: groupRequired,
+        min_select: minSelect,
+        max_select: maxSelect,
+        tenant_id: tenantId,
+      })
+      .select()
+      .single();
 
-      const newItems = arrayMove(categories, oldIndex, newIndex);
-      setCategories(newItems);
+    setShowGroupModal(false);
+    setGroupName("");
+    setGroupRequired(false);
+    setMinSelect(0);
+    setMaxSelect(1);
 
-      newItems.forEach(async (cat, index) => {
-        await supabase
-          .from("categories")
-          .update({ position: index })
-          .eq("id", cat.id);
-      });
+    fetchGroups();
+
+    if (data) {
+      setSelectedGroups((prev) => [...prev, data.id]);
     }
   }
 
-  // DRAG PRODUCT
-  async function handleProductDragEnd(event: any, categoryId: string) {
-    const { active, over } = event;
-    if (!over) return;
-
-    const filtered = products.filter((p) => p.category_id === categoryId);
-
-    const oldIndex = filtered.findIndex((p) => p.id === active.id);
-    const newIndex = filtered.findIndex((p) => p.id === over.id);
-
-    const newItems = arrayMove(filtered, oldIndex, newIndex);
-
-    newItems.forEach(async (prod, index) => {
-      await supabase
-        .from("products")
-        .update({ position: index })
-        .eq("id", prod.id);
-    });
-
-    fetchAll();
-  }
-
-  // SUBMIT (SEU ORIGINAL MELHORADO)
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
 
-    if (!user) return;
+    const tenantId = await getTenant();
 
-    const { data: profile } = await supabase
-      .from("profiles")
-      .select("tenant_id")
-      .eq("id", user.id)
-      .single();
-
-    let image_url = null;
+    let finalImageUrl = imageUrl;
 
     if (imageFile) {
-      const compressed = await imageCompression(imageFile, {
+      const compressedFile = await imageCompression(imageFile, {
         maxSizeMB: 1,
         maxWidthOrHeight: 800,
       });
 
-      const fileName = `${profile?.tenant_id}/${Date.now()}`;
+      const fileName = `${tenantId}/${Date.now()}-${compressedFile.name}`;
 
-      await supabase.storage.from("products").upload(fileName, compressed);
+      await supabase.storage.from("products").upload(fileName, compressedFile);
 
       const { data } = supabase.storage
         .from("products")
         .getPublicUrl(fileName);
 
-      image_url = data.publicUrl;
+      finalImageUrl = data.publicUrl;
     }
 
-    await supabase.from("products").insert({
-      name,
-      price: Number(price),
-      description,
-      category_id: categoryId,
-      tenant_id: profile?.tenant_id,
-      image_url,
-    });
+    let productId = editingId;
+
+    if (editingId) {
+      await supabase
+        .from("products")
+        .update({
+          name,
+          price: Number(price),
+          description,
+          category_id: categoryId || null,
+          ...(finalImageUrl && { image_url: finalImageUrl }),
+        })
+        .eq("id", editingId);
+    } else {
+      const { data } = await supabase
+        .from("products")
+        .insert({
+          name,
+          price: Number(price),
+          description,
+          tenant_id: tenantId,
+          category_id: categoryId || null,
+          image_url: finalImageUrl || null,
+        })
+        .select()
+        .single();
+
+      productId = data.id;
+    }
+
+    await supabase
+      .from("product_group_links")
+      .delete()
+      .eq("product_id", productId);
+
+    if (selectedGroups.length > 0) {
+      await supabase.from("product_group_links").insert(
+        selectedGroups.map((g) => ({
+          product_id: productId,
+          group_id: g,
+        }))
+      );
+    }
 
     setName("");
     setPrice("");
     setDescription("");
     setCategoryId("");
+    setSelectedGroups([]);
     setPreview(null);
+    setImageFile(null);
+    setImageUrl("");
+    setEditingId(null);
 
-    fetchAll();
+    fetchProducts();
   }
 
   return (
     <div className="p-10 bg-gray-100 min-h-screen">
       <h1 className="text-3xl font-bold mb-6">Produtos</h1>
 
-      <Button onClick={() => setShowCategoryModal(true)}>
+      {/* 🔥 BOTÃO NOVA CATEGORIA */}
+      <Button onClick={() => setShowCategoryModal(true)} className="mb-6">
         + Nova Categoria
       </Button>
 
-      <div className="mt-6 space-y-6">
-        <DndContext
-          sensors={sensors}
-          collisionDetection={closestCenter}
-          onDragEnd={handleCategoryDragEnd}
-        >
-          <SortableContext
-            items={categories.map((c) => c.id)}
-            strategy={verticalListSortingStrategy}
-          >
-            {categories.map((cat) => (
-              <SortableItem key={cat.id} id={cat.id}>
-                <div className="bg-white p-6 rounded-xl shadow">
-                  <h2 className="font-bold mb-4">{cat.name}</h2>
+      {/* LISTA POR CATEGORIA */}
+      {categories.map((category) => (
+        <div key={category.id} className="mb-8">
+          <div className="flex justify-between items-center mb-3">
+            <h2 className="text-xl font-bold">{category.name}</h2>
 
-                  {/* LISTA PRODUTOS */}
-                  <DndContext
-                    sensors={sensors}
-                    collisionDetection={closestCenter}
-                    onDragEnd={(e) =>
-                      handleProductDragEnd(e, cat.id)
-                    }
-                  >
-                    <SortableContext
-                      items={products
-                        .filter((p) => p.category_id === cat.id)
-                        .map((p) => p.id)}
-                      strategy={verticalListSortingStrategy}
-                    >
-                      {products
-                        .filter((p) => p.category_id === cat.id)
-                        .map((product) => (
-                          <SortableItem
-                            key={product.id}
-                            id={product.id}
-                          >
-                            <div className="flex justify-between border-b py-2 items-center">
-                              <span>{product.name}</span>
+            <Button
+              className="!px-3 !py-1 text-sm"
+              onClick={() => setCategoryId(category.id)}
+            >
+              +1 Novo Produto
+            </Button>
+          </div>
 
-                              {/* +1 estilo iFood */}
-                              <button className="bg-green-500 text-white px-3 py-1 rounded-full text-sm">
-                                +1
-                              </button>
-                            </div>
-                          </SortableItem>
-                        ))}
-                    </SortableContext>
-                  </DndContext>
-
-                  {/* FORM dentro da categoria */}
-                  <form
-                    onSubmit={handleSubmit}
-                    className="mt-4 flex flex-col gap-2"
-                  >
-                    <input
-                      placeholder="Nome"
-                      value={name}
-                      onChange={(e) => setName(e.target.value)}
-                      className="border p-2 rounded"
-                    />
-
-                    <input
-                      placeholder="Preço"
-                      value={price}
-                      onChange={(e) => setPrice(e.target.value)}
-                      className="border p-2 rounded"
-                    />
-
-                    <input
-                      type="file"
-                      onChange={(e) => {
-                        const file = e.target.files?.[0];
-                        if (file) {
-                          setImageFile(file);
-                          setPreview(URL.createObjectURL(file));
-                        }
-                      }}
-                    />
-
-                    <input
-                      type="hidden"
-                      value={cat.id}
-                      onChange={() => setCategoryId(cat.id)}
-                    />
-
-                    <Button type="submit">Adicionar</Button>
-                  </form>
+          <div className="bg-white p-4 rounded-xl shadow space-y-3">
+            {products
+              .filter((p) => p.category_id === category.id)
+              .map((product) => (
+                <div
+                  key={product.id}
+                  className="flex justify-between border-b pb-2"
+                >
+                  <div>
+                    <p className="font-medium">{product.name}</p>
+                    <p className="text-sm text-gray-500">
+                      R$ {product.price}
+                    </p>
+                  </div>
                 </div>
-              </SortableItem>
-            ))}
-          </SortableContext>
-        </DndContext>
-      </div>
+              ))}
+          </div>
+        </div>
+      ))}
+
+      {/* FORM (MANTIDO) */}
+      <form
+        onSubmit={handleSubmit}
+        className="bg-white p-6 rounded-xl shadow flex flex-col gap-4 max-w-md"
+      >
+        <input
+          placeholder="Nome"
+          value={name}
+          onChange={(e) => setName(e.target.value)}
+          className="border p-2 rounded"
+        />
+
+        <textarea
+          placeholder="Descrição"
+          value={description}
+          onChange={(e) => setDescription(e.target.value)}
+          className="border p-2 rounded"
+        />
+
+        <input
+          type="number"
+          placeholder="Preço"
+          value={price}
+          onChange={(e) => setPrice(e.target.value)}
+          className="border p-2 rounded"
+        />
+
+        {/* URL IMAGEM */}
+        <input
+          placeholder="URL da imagem"
+          value={imageUrl}
+          onChange={(e) => setImageUrl(e.target.value)}
+          className="border p-2 rounded"
+        />
+
+        <input
+          type="file"
+          onChange={(e) => {
+            const file = e.target.files?.[0];
+            if (file) {
+              setImageFile(file);
+              setPreview(URL.createObjectURL(file));
+            }
+          }}
+        />
+
+        {preview && <img src={preview} className="w-24 h-24 rounded" />}
+
+        {/* COMPLEMENTOS (MANTIDO) */}
+        <div className="bg-gray-50 p-4 rounded-xl border">
+          <div className="flex justify-between mb-3">
+            <p className="font-semibold">Complementos</p>
+
+            <button
+              type="button"
+              onClick={() => setShowGroupModal(true)}
+              className="bg-purple-600 text-white px-3 py-1 rounded-lg text-sm"
+            >
+              + Criar Grupo
+            </button>
+          </div>
+
+          {groups.map((group) => (
+            <label key={group.id} className="flex gap-2">
+              <input
+                type="checkbox"
+                checked={selectedGroups.includes(group.id)}
+                onChange={() => toggleGroup(group.id)}
+              />
+              {group.name}
+            </label>
+          ))}
+        </div>
+
+        <Button type="submit">Salvar Produto</Button>
+      </form>
 
       {/* MODAL CATEGORIA */}
       {showCategoryModal && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center">
-          <div className="bg-white p-6 rounded-xl">
+          <div className="bg-white p-6 rounded-xl w-full max-w-md">
+            <h2 className="text-xl font-bold mb-4">Nova Categoria</h2>
+
             <input
               placeholder="Nome da categoria"
-              value={categoryName}
-              onChange={(e) => setCategoryName(e.target.value)}
-              className="border p-2 rounded mb-4"
+              value={newCategoryName}
+              onChange={(e) => setNewCategoryName(e.target.value)}
+              className="border p-2 rounded w-full mb-4"
             />
 
-            <Button onClick={createCategory}>Criar</Button>
+            <div className="flex justify-end gap-2">
+              <Button onClick={() => setShowCategoryModal(false)}>
+                Cancelar
+              </Button>
+
+              <Button onClick={createCategory}>
+                Criar
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL GRUPO (MANTIDO) */}
+      {showGroupModal && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center">
+          <div className="bg-white p-6 rounded-xl w-full max-w-md">
+            <h2 className="text-xl font-bold mb-4">Novo Grupo</h2>
+
+            <input
+              placeholder="Nome do grupo"
+              value={groupName}
+              onChange={(e) => setGroupName(e.target.value)}
+              className="border p-2 rounded w-full mb-2"
+            />
+
+            <label className="flex gap-2 mb-2">
+              <input
+                type="checkbox"
+                checked={groupRequired}
+                onChange={(e) => setGroupRequired(e.target.checked)}
+              />
+              Obrigatório
+            </label>
+
+            <input
+              type="number"
+              placeholder="Mínimo"
+              value={minSelect}
+              onChange={(e) => setMinSelect(Number(e.target.value))}
+              className="border p-2 rounded w-full mb-2"
+            />
+
+            <input
+              type="number"
+              placeholder="Máximo"
+              value={maxSelect}
+              onChange={(e) => setMaxSelect(Number(e.target.value))}
+              className="border p-2 rounded w-full mb-4"
+            />
+
+            <div className="flex justify-end gap-2">
+              <Button onClick={() => setShowGroupModal(false)}>
+                Cancelar
+              </Button>
+
+              <Button onClick={createGroup}>
+                Criar
+              </Button>
+            </div>
           </div>
         </div>
       )}
