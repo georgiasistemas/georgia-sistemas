@@ -13,6 +13,7 @@ type Product = {
   image_url?: string | null;
   description?: string | null;
   category_id?: string | null;
+  active?: boolean;
 };
 
 type Group = {
@@ -23,6 +24,7 @@ type Group = {
 type Category = {
   id: string;
   name: string;
+  active?: boolean;
 };
 
 export default function ProductsPage() {
@@ -44,7 +46,7 @@ export default function ProductsPage() {
   const [imageUrl, setImageUrl] = useState("");
   const [preview, setPreview] = useState<string | null>(null);
 
-  // 🔥 MODAIS
+  // MODAIS
   const [showGroupModal, setShowGroupModal] = useState(false);
   const [showCategoryModal, setShowCategoryModal] = useState(false);
 
@@ -72,7 +74,6 @@ export default function ProductsPage() {
   }
 
   async function fetchCategories() {
-    if (!user) return;
     const tenantId = await getTenant();
 
     const { data } = await supabase
@@ -84,7 +85,6 @@ export default function ProductsPage() {
   }
 
   async function fetchGroups() {
-    if (!user) return;
     const tenantId = await getTenant();
 
     const { data } = await supabase
@@ -96,7 +96,6 @@ export default function ProductsPage() {
   }
 
   async function fetchProducts() {
-    if (!user) return;
     const tenantId = await getTenant();
 
     const { data } = await supabase
@@ -105,6 +104,30 @@ export default function ProductsPage() {
       .eq("tenant_id", tenantId);
 
     setProducts(data || []);
+  }
+
+  // ATIVAR / PAUSAR
+  async function toggleCategory(id: string, active: boolean) {
+    await supabase.from("categories").update({ active }).eq("id", id);
+    fetchCategories();
+  }
+
+  async function toggleProduct(id: string, active: boolean) {
+    await supabase.from("products").update({ active }).eq("id", id);
+    fetchProducts();
+  }
+
+  // DELETE
+  async function deleteCategory(id: string) {
+    if (!confirm("Excluir categoria?")) return;
+    await supabase.from("categories").delete().eq("id", id);
+    fetchCategories();
+  }
+
+  async function deleteProduct(id: string) {
+    if (!confirm("Excluir produto?")) return;
+    await supabase.from("products").delete().eq("id", id);
+    fetchProducts();
   }
 
   function toggleGroup(id: string) {
@@ -121,6 +144,7 @@ export default function ProductsPage() {
     await supabase.from("categories").insert({
       name: newCategoryName,
       tenant_id: tenantId,
+      active: true,
     });
 
     setNewCategoryName("");
@@ -203,6 +227,7 @@ export default function ProductsPage() {
           tenant_id: tenantId,
           category_id: categoryId || null,
           image_url: finalImageUrl || null,
+          active: true,
         })
         .select()
         .single();
@@ -241,38 +266,72 @@ export default function ProductsPage() {
     <div className="p-10 bg-gray-100 min-h-screen">
       <h1 className="text-3xl font-bold mb-6">Produtos</h1>
 
-      {/* 🔥 BOTÃO NOVA CATEGORIA */}
       <Button onClick={() => setShowCategoryModal(true)} className="mb-6">
         + Nova Categoria
       </Button>
 
-      {/* LISTA POR CATEGORIA */}
       {categories.map((category) => (
         <div key={category.id} className="mb-8">
-          <div className="flex justify-between items-center mb-3">
-            <h2 className="text-xl font-bold">{category.name}</h2>
+          <div className="flex justify-between items-center mb-2">
+            <h2 className="text-xl font-bold">
+              {category.name} {!category.active && "(Pausado)"}
+            </h2>
 
-            <Button
-              className="!px-3 !py-1 text-sm"
-              onClick={() => setCategoryId(category.id)}
-            >
-              +1 Novo Produto
-            </Button>
+            <div className="flex gap-2">
+              <Button
+                onClick={() =>
+                  toggleCategory(category.id, !category.active)
+                }
+                className="!px-2 !py-1 text-xs"
+              >
+                {category.active ? "Pausar" : "Ativar"}
+              </Button>
+
+              <Button
+                onClick={() => deleteCategory(category.id)}
+                className="!px-2 !py-1 text-xs bg-red-500"
+              >
+                Excluir
+              </Button>
+            </div>
           </div>
 
-          <div className="bg-white p-4 rounded-xl shadow space-y-3">
+          <div className="bg-white p-4 rounded-xl shadow space-y-2">
             {products
               .filter((p) => p.category_id === category.id)
               .map((product) => (
                 <div
                   key={product.id}
-                  className="flex justify-between border-b pb-2"
+                  className="flex justify-between items-center border-b pb-2"
                 >
                   <div>
-                    <p className="font-medium">{product.name}</p>
+                    <p>{product.name}</p>
                     <p className="text-sm text-gray-500">
                       R$ {product.price}
                     </p>
+                    {!product.active && (
+                      <span className="text-xs text-red-500">
+                        Pausado
+                      </span>
+                    )}
+                  </div>
+
+                  <div className="flex gap-2">
+                    <Button
+                      onClick={() =>
+                        toggleProduct(product.id, !product.active)
+                      }
+                      className="!px-2 !py-1 text-xs"
+                    >
+                      {product.active ? "Pausar" : "Ativar"}
+                    </Button>
+
+                    <Button
+                      onClick={() => deleteProduct(product.id)}
+                      className="!px-2 !py-1 text-xs bg-red-500"
+                    >
+                      Excluir
+                    </Button>
                   </div>
                 </div>
               ))}
@@ -280,7 +339,7 @@ export default function ProductsPage() {
         </div>
       ))}
 
-      {/* FORM (MANTIDO) */}
+      {/* FORM ORIGINAL MANTIDO */}
       <form
         onSubmit={handleSubmit}
         className="bg-white p-6 rounded-xl shadow flex flex-col gap-4 max-w-md"
@@ -307,7 +366,7 @@ export default function ProductsPage() {
           className="border p-2 rounded"
         />
 
-        {/* URL IMAGEM */}
+        {/* URL */}
         <input
           placeholder="URL da imagem"
           value={imageUrl}
@@ -315,6 +374,7 @@ export default function ProductsPage() {
           className="border p-2 rounded"
         />
 
+        {/* UPLOAD */}
         <input
           type="file"
           onChange={(e) => {
@@ -328,7 +388,7 @@ export default function ProductsPage() {
 
         {preview && <img src={preview} className="w-24 h-24 rounded" />}
 
-        {/* COMPLEMENTOS (MANTIDO) */}
+        {/* COMPLEMENTOS (INTACTO + CONTROLE MELHORADO) */}
         <div className="bg-gray-50 p-4 rounded-xl border">
           <div className="flex justify-between mb-3">
             <p className="font-semibold">Complementos</p>
@@ -375,15 +435,13 @@ export default function ProductsPage() {
                 Cancelar
               </Button>
 
-              <Button onClick={createCategory}>
-                Criar
-              </Button>
+              <Button onClick={createCategory}>Criar</Button>
             </div>
           </div>
         </div>
       )}
 
-      {/* MODAL GRUPO (MANTIDO) */}
+      {/* MODAL GRUPO COM + - */}
       {showGroupModal && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center">
           <div className="bg-white p-6 rounded-xl w-full max-w-md">
@@ -396,7 +454,7 @@ export default function ProductsPage() {
               className="border p-2 rounded w-full mb-2"
             />
 
-            <label className="flex gap-2 mb-2">
+            <label className="flex gap-2 mb-4">
               <input
                 type="checkbox"
                 checked={groupRequired}
@@ -405,30 +463,33 @@ export default function ProductsPage() {
               Obrigatório
             </label>
 
-            <input
-              type="number"
-              placeholder="Mínimo"
-              value={minSelect}
-              onChange={(e) => setMinSelect(Number(e.target.value))}
-              className="border p-2 rounded w-full mb-2"
-            />
+            {/* CONTROLE IFOOD */}
+            <div className="flex justify-between mb-4">
+              <div>
+                <p className="text-sm">Mínimo</p>
+                <div className="flex gap-2">
+                  <button onClick={() => setMinSelect(Math.max(0, minSelect - 1))}>-</button>
+                  <span>{minSelect}</span>
+                  <button onClick={() => setMinSelect(minSelect + 1)}>+</button>
+                </div>
+              </div>
 
-            <input
-              type="number"
-              placeholder="Máximo"
-              value={maxSelect}
-              onChange={(e) => setMaxSelect(Number(e.target.value))}
-              className="border p-2 rounded w-full mb-4"
-            />
+              <div>
+                <p className="text-sm">Máximo</p>
+                <div className="flex gap-2">
+                  <button onClick={() => setMaxSelect(Math.max(1, maxSelect - 1))}>-</button>
+                  <span>{maxSelect}</span>
+                  <button onClick={() => setMaxSelect(maxSelect + 1)}>+</button>
+                </div>
+              </div>
+            </div>
 
             <div className="flex justify-end gap-2">
               <Button onClick={() => setShowGroupModal(false)}>
                 Cancelar
               </Button>
 
-              <Button onClick={createGroup}>
-                Criar
-              </Button>
+              <Button onClick={createGroup}>Criar</Button>
             </div>
           </div>
         </div>
