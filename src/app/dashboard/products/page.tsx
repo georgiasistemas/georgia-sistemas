@@ -270,6 +270,7 @@ export default function ProductsPage() {
         + Nova Categoria
       </Button>
 
+      {/* LISTAGEM */}
       {categories.map((category) => (
         <div key={category.id} className="mb-8">
           <div className="flex justify-between items-center mb-2">
@@ -339,7 +340,7 @@ export default function ProductsPage() {
         </div>
       ))}
 
-      {/* FORM ORIGINAL MANTIDO */}
+      {/* FORM */}
       <form
         onSubmit={handleSubmit}
         className="bg-white p-6 rounded-xl shadow flex flex-col gap-4 max-w-md"
@@ -366,7 +367,6 @@ export default function ProductsPage() {
           className="border p-2 rounded"
         />
 
-        {/* URL */}
         <input
           placeholder="URL da imagem"
           value={imageUrl}
@@ -374,7 +374,6 @@ export default function ProductsPage() {
           className="border p-2 rounded"
         />
 
-        {/* UPLOAD */}
         <input
           type="file"
           onChange={(e) => {
@@ -388,7 +387,7 @@ export default function ProductsPage() {
 
         {preview && <img src={preview} className="w-24 h-24 rounded" />}
 
-        {/* COMPLEMENTOS (INTACTO + CONTROLE MELHORADO) */}
+        {/* COMPLEMENTOS */}
         <div className="bg-gray-50 p-4 rounded-xl border">
           <div className="flex justify-between mb-3">
             <p className="font-semibold">Complementos</p>
@@ -417,31 +416,7 @@ export default function ProductsPage() {
         <Button type="submit">Salvar Produto</Button>
       </form>
 
-      {/* MODAL CATEGORIA */}
-      {showCategoryModal && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center">
-          <div className="bg-white p-6 rounded-xl w-full max-w-md">
-            <h2 className="text-xl font-bold mb-4">Nova Categoria</h2>
-
-            <input
-              placeholder="Nome da categoria"
-              value={newCategoryName}
-              onChange={(e) => setNewCategoryName(e.target.value)}
-              className="border p-2 rounded w-full mb-4"
-            />
-
-            <div className="flex justify-end gap-2">
-              <Button onClick={() => setShowCategoryModal(false)}>
-                Cancelar
-              </Button>
-
-              <Button onClick={createCategory}>Criar</Button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* MODAL GRUPO COM + - */}
+      {/* MODAL GRUPO (iFood style) */}
       {showGroupModal && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center">
           <div className="bg-white p-6 rounded-xl w-full max-w-md">
@@ -463,11 +438,11 @@ export default function ProductsPage() {
               Obrigatório
             </label>
 
-            {/* CONTROLE IFOOD */}
+            {/* IFOOD STYLE */}
             <div className="flex justify-between mb-4">
               <div>
                 <p className="text-sm">Mínimo</p>
-                <div className="flex gap-2">
+                <div className="flex items-center gap-2">
                   <button onClick={() => setMinSelect(Math.max(0, minSelect - 1))}>-</button>
                   <span>{minSelect}</span>
                   <button onClick={() => setMinSelect(minSelect + 1)}>+</button>
@@ -476,7 +451,7 @@ export default function ProductsPage() {
 
               <div>
                 <p className="text-sm">Máximo</p>
-                <div className="flex gap-2">
+                <div className="flex items-center gap-2">
                   <button onClick={() => setMaxSelect(Math.max(1, maxSelect - 1))}>-</button>
                   <span>{maxSelect}</span>
                   <button onClick={() => setMaxSelect(maxSelect + 1)}>+</button>
