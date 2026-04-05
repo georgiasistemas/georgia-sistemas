@@ -232,6 +232,11 @@ export default function ProductsPage() {
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
 
+    if (!categoryId) {
+      alert("Selecione uma categoria");
+      return;
+    }
+
     const tenantId = await getTenant();
 
     let finalImageUrl = imageUrl;
@@ -262,7 +267,7 @@ export default function ProductsPage() {
           name,
           price: Number(price),
           description,
-          category_id: categoryId || null,
+          category_id: categoryId,
           ...(finalImageUrl && { image_url: finalImageUrl }),
         })
         .eq("id", editingId);
@@ -274,7 +279,7 @@ export default function ProductsPage() {
           price: Number(price),
           description,
           tenant_id: tenantId,
-          category_id: categoryId || null,
+          category_id: categoryId,
           image_url: finalImageUrl || null,
           active: true,
         })
@@ -379,11 +384,21 @@ export default function ProductsPage() {
         </div>
       ))}
 
-      {/* FORM */}
       <form
         onSubmit={handleSubmit}
         className="bg-white p-6 rounded-xl shadow flex flex-col gap-4 max-w-md"
       >
+        <select
+          value={categoryId}
+          onChange={(e) => setCategoryId(e.target.value)}
+          className="border p-2 rounded"
+        >
+          <option value="">Selecione a categoria</option>
+          {categories.map(c => (
+            <option key={c.id} value={c.id}>{c.name}</option>
+          ))}
+        </select>
+
         <input
           placeholder="Nome"
           value={name}
