@@ -228,7 +228,30 @@ export default function ProductsPage() {
       setSelectedGroups(prev => [...prev, data.id]);
     }
   }
+// ================= EDITAR PRODUTO =================
 
+async function loadProductGroups(productId: string) {
+  const { data } = await supabase
+    .from("product_group_links")
+    .select("group_id")
+    .eq("product_id", productId);
+
+  if (data) {
+    setSelectedGroups(data.map((g: any) => g.group_id));
+  }
+}
+
+function handleEdit(product: Product) {
+  setEditingId(product.id);
+  setName(product.name);
+  setPrice(String(product.price));
+  setDescription(product.description || "");
+  setCategoryId(product.category_id || "");
+  setImageUrl(product.image_url || "");
+  setPreview(product.image_url || null);
+
+  loadProductGroups(product.id);
+}
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
 
@@ -374,9 +397,14 @@ export default function ProductsPage() {
                       {product.active ? "Pausar" : "Ativar"}
                     </Button>
 
+                    <Button onClick={() => handleEdit(product)}>
+                      Editar
+                    </Button>
+
                     <Button onClick={() => deleteProduct(product.id)}>
                       Excluir
                     </Button>
+
                   </div>
                 </div>
               ))}
