@@ -14,6 +14,7 @@ type Product = {
   description?: string | null;
   category_id?: string | null;
   active?: boolean;
+  order_index?: number;
 };
 
 type Group = {
@@ -25,6 +26,7 @@ type Category = {
   id: string;
   name: string;
   active?: boolean;
+  order_index?: number;
 };
 
 export default function ProductsPage() {
@@ -33,6 +35,9 @@ export default function ProductsPage() {
   const [products, setProducts] = useState<Product[]>([]);
   const [groups, setGroups] = useState<Group[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
+
+  const [draggedCategory, setDraggedCategory] = useState<string | null>(null);
+  const [draggedProduct, setDraggedProduct] = useState<string | null>(null);
 
   const [selectedGroups, setSelectedGroups] = useState<string[]>([]);
   const [categoryId, setCategoryId] = useState("");
@@ -46,7 +51,6 @@ export default function ProductsPage() {
   const [imageUrl, setImageUrl] = useState("");
   const [preview, setPreview] = useState<string | null>(null);
 
-  // MODAIS
   const [showGroupModal, setShowGroupModal] = useState(false);
   const [showCategoryModal, setShowCategoryModal] = useState(false);
 
@@ -79,7 +83,8 @@ export default function ProductsPage() {
     const { data } = await supabase
       .from("categories")
       .select("*")
-      .eq("tenant_id", tenantId);
+      .eq("tenant_id", tenantId)
+      .order("order_index", { ascending: true });
 
     setCategories(data || []);
   }
@@ -101,12 +106,57 @@ export default function ProductsPage() {
     const { data } = await supabase
       .from("products")
       .select("*")
-      .eq("tenant_id", tenantId);
+      .eq("tenant_id", tenantId)
+      .order("order_index", { ascending: true });
 
     setProducts(data || []);
   }
 
-  // ATIVAR / PAUSAR
+  async function handleDropCategory(targetId: string) {
+    if (!draggedCategory || draggedCategory === targetId) return;
+
+    const updated = [...categories];
+    const fromIndex = updated.findIndex(c => c.id === draggedCategory);
+    const toIndex = updated.findIndex(c => c.id === targetId);
+
+    const [moved] = updated.splice(fromIndex, 1);
+    updated.splice(toIndex, 0, moved);
+
+    setCategories(updated);
+
+    await Promise.all(
+      updated.map((c, index) =>
+        supabase.from("categories").update({ order_index: index }).eq("id", c.id)
+      )
+    );
+  }
+
+  async function handleDropProduct(targetId: string, categoryId: string) {
+    if (!draggedProduct || draggedProduct === targetId) return;
+
+    const filtered = products.filter(p => p.category_id === categoryId);
+    const updated = [...filtered];
+
+    const fromIndex = updated.findIndex(p => p.id === draggedProduct);
+    const toIndex = updated.findIndex(p => p.id === targetId);
+
+    const [moved] = updated.splice(fromIndex, 1);
+    updated.splice(toIndex, 0, moved);
+
+    const newProducts = products.map(p => {
+      const index = updated.findIndex(u => u.id === p.id);
+      return index !== -1 ? { ...p, order_index: index } : p;
+    });
+
+    setProducts(newProducts);
+
+    await Promise.all(
+      updated.map((p, index) =>
+        supabase.from("products").update({ order_index: index }).eq("id", p.id)
+      )
+    );
+  }
+
   async function toggleCategory(id: string, active: boolean) {
     await supabase.from("categories").update({ active }).eq("id", id);
     fetchCategories();
@@ -117,7 +167,6 @@ export default function ProductsPage() {
     fetchProducts();
   }
 
-  // DELETE
   async function deleteCategory(id: string) {
     if (!confirm("Excluir categoria?")) return;
     await supabase.from("categories").delete().eq("id", id);
@@ -131,9 +180,9 @@ export default function ProductsPage() {
   }
 
   function toggleGroup(id: string) {
-    setSelectedGroups((prev) =>
+    setSelectedGroups(prev =>
       prev.includes(id)
-        ? prev.filter((g) => g !== id)
+        ? prev.filter(g => g !== id)
         : [...prev, id]
     );
   }
@@ -176,7 +225,7 @@ export default function ProductsPage() {
     fetchGroups();
 
     if (data) {
-      setSelectedGroups((prev) => [...prev, data.id]);
+      setSelectedGroups(prev => [...prev, data.id]);
     }
   }
 
@@ -242,7 +291,7 @@ export default function ProductsPage() {
 
     if (selectedGroups.length > 0) {
       await supabase.from("product_group_links").insert(
-        selectedGroups.map((g) => ({
+        selectedGroups.map(g => ({
           product_id: productId,
           group_id: g,
         }))
@@ -270,28 +319,26 @@ export default function ProductsPage() {
         + Nova Categoria
       </Button>
 
-      {/* LISTAGEM */}
-      {categories.map((category) => (
-        <div key={category.id} className="mb-8">
+      {categories.map(category => (
+        <div
+          key={category.id}
+          draggable
+          onDragStart={() => setDraggedCategory(category.id)}
+          onDragOver={e => e.preventDefault()}
+          onDrop={() => handleDropCategory(category.id)}
+          className="mb-8 cursor-move"
+        >
           <div className="flex justify-between items-center mb-2">
             <h2 className="text-xl font-bold">
               {category.name} {!category.active && "(Pausado)"}
             </h2>
 
             <div className="flex gap-2">
-              <Button
-                onClick={() =>
-                  toggleCategory(category.id, !category.active)
-                }
-                className="!px-2 !py-1 text-xs"
-              >
+              <Button onClick={() => toggleCategory(category.id, !category.active)}>
                 {category.active ? "Pausar" : "Ativar"}
               </Button>
 
-              <Button
-                onClick={() => deleteCategory(category.id)}
-                className="!px-2 !py-1 text-xs bg-red-500"
-              >
+              <Button onClick={() => deleteCategory(category.id)}>
                 Excluir
               </Button>
             </div>
@@ -299,38 +346,30 @@ export default function ProductsPage() {
 
           <div className="bg-white p-4 rounded-xl shadow space-y-2">
             {products
-              .filter((p) => p.category_id === category.id)
-              .map((product) => (
+              .filter(p => p.category_id === category.id)
+              .map(product => (
                 <div
                   key={product.id}
-                  className="flex justify-between items-center border-b pb-2"
+                  draggable
+                  onDragStart={() => setDraggedProduct(product.id)}
+                  onDragOver={e => e.preventDefault()}
+                  onDrop={() => handleDropProduct(product.id, category.id)}
+                  className="flex justify-between items-center border-b pb-2 cursor-move"
                 >
                   <div>
                     <p>{product.name}</p>
-                    <p className="text-sm text-gray-500">
-                      R$ {product.price}
-                    </p>
+                    <p className="text-sm text-gray-500">R$ {product.price}</p>
                     {!product.active && (
-                      <span className="text-xs text-red-500">
-                        Pausado
-                      </span>
+                      <span className="text-xs text-red-500">Pausado</span>
                     )}
                   </div>
 
                   <div className="flex gap-2">
-                    <Button
-                      onClick={() =>
-                        toggleProduct(product.id, !product.active)
-                      }
-                      className="!px-2 !py-1 text-xs"
-                    >
+                    <Button onClick={() => toggleProduct(product.id, !product.active)}>
                       {product.active ? "Pausar" : "Ativar"}
                     </Button>
 
-                    <Button
-                      onClick={() => deleteProduct(product.id)}
-                      className="!px-2 !py-1 text-xs bg-red-500"
-                    >
+                    <Button onClick={() => deleteProduct(product.id)}>
                       Excluir
                     </Button>
                   </div>
@@ -387,7 +426,6 @@ export default function ProductsPage() {
 
         {preview && <img src={preview} className="w-24 h-24 rounded" />}
 
-        {/* COMPLEMENTOS */}
         <div className="bg-gray-50 p-4 rounded-xl border">
           <div className="flex justify-between mb-3">
             <p className="font-semibold">Complementos</p>
@@ -401,7 +439,7 @@ export default function ProductsPage() {
             </button>
           </div>
 
-          {groups.map((group) => (
+          {groups.map(group => (
             <label key={group.id} className="flex gap-2">
               <input
                 type="checkbox"
@@ -416,7 +454,29 @@ export default function ProductsPage() {
         <Button type="submit">Salvar Produto</Button>
       </form>
 
-      {/* MODAL GRUPO (iFood style) */}
+      {showCategoryModal && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center">
+          <div className="bg-white p-6 rounded-xl w-full max-w-md">
+            <h2 className="text-xl font-bold mb-4">Nova Categoria</h2>
+
+            <input
+              placeholder="Nome da categoria"
+              value={newCategoryName}
+              onChange={(e) => setNewCategoryName(e.target.value)}
+              className="border p-2 rounded w-full mb-4"
+            />
+
+            <div className="flex justify-end gap-2">
+              <Button onClick={() => setShowCategoryModal(false)}>
+                Cancelar
+              </Button>
+
+              <Button onClick={createCategory}>Criar</Button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {showGroupModal && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center">
           <div className="bg-white p-6 rounded-xl w-full max-w-md">
@@ -438,7 +498,6 @@ export default function ProductsPage() {
               Obrigatório
             </label>
 
-            {/* IFOOD STYLE */}
             <div className="flex justify-between mb-4">
               <div>
                 <p className="text-sm">Mínimo</p>
