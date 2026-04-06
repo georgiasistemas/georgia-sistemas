@@ -352,9 +352,17 @@ function handleEdit(product: Product) {
           key={category.id}
           draggable
           onDragStart={() => setDraggedCategory(category.id)}
-          onDragOver={e => e.preventDefault()}
+          onDragOver={e => {
+            e.preventDefault();
+            e.currentTarget.classList.add("bg-green-50");
+          }}
+          onDragLeave={e => {
+            e.currentTarget.classList.remove("bg-green-50");
+          }}
           onDrop={() => handleDropCategory(category.id)}
-          className="mb-8 cursor-move"
+          className={`mb-8 cursor-move transition-all duration-200 ${
+            draggedCategory === category.id ? "opacity-50 scale-95" : ""
+          }`}
         >
           <div className="flex justify-between items-center mb-2">
             <h2 className="text-xl font-bold">
@@ -379,10 +387,25 @@ function handleEdit(product: Product) {
                 <div
                   key={product.id}
                   draggable
-                  onDragStart={() => setDraggedProduct(product.id)}
-                  onDragOver={e => e.preventDefault()}
+                  onDragStart={(e) => {
+                    setDraggedProduct(product.id);
+                    e.currentTarget.classList.add("cursor-grabbing");
+                  }}
+                  onDragEnd={(e) => {
+                    setDraggedProduct(null);
+                    e.currentTarget.classList.remove("cursor-grabbing");
+                  }}
+                  onDragOver={e => {
+                    e.preventDefault();
+                    e.currentTarget.classList.add("bg-blue-50");
+                  }}
+                  onDragLeave={e => {
+                    e.currentTarget.classList.remove("bg-blue-50");
+                  }}
                   onDrop={() => handleDropProduct(product.id, category.id)}
-                  className="flex justify-between items-center border-b pb-2 cursor-move"
+                  className={`flex justify-between items-center border-b pb-2 cursor-move transition-all duration-200 ${
+                    draggedProduct === product.id ? "opacity-50 scale-95" : ""
+                  }`}
                 >
                   <div>
                     <p>{product.name}</p>
