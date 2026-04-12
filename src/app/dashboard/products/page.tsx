@@ -143,18 +143,27 @@ export default function ProductsPage() {
     const [moved] = updated.splice(fromIndex, 1);
     updated.splice(toIndex, 0, moved);
 
+    const reorderedIds = updated.map(p => p.id);
+
     const newProducts = products.map(p => {
-      const index = updated.findIndex(u => u.id === p.id);
-      return index !== -1 ? { ...p, order_index: index } : p;
+      const index = reorderedIds.indexOf(p.id);
+
+      if (p.category_id === categoryId && index !== -1) {
+        return { ...p, order_index: index };
+      }
+
+      return p;
     });
 
-    setProducts(newProducts);
+    setProducts([...newProducts]);
 
     await Promise.all(
       updated.map((p, index) =>
         supabase.from("products").update({ order_index: index }).eq("id", p.id)
       )
     );
+
+    setDraggedProduct(null);
   }
 
   async function toggleCategory(id: string, active: boolean) {
@@ -359,7 +368,10 @@ function handleEdit(product: Product) {
           onDragLeave={e => {
             e.currentTarget.classList.remove("bg-green-50");
           }}
-          onDrop={() => handleDropCategory(category.id)}
+          onDrop={() => {
+            handleDropCategory(category.id);
+            setDraggedCategory(null);
+          }}
           className={`mb-8 cursor-move transition-all duration-200 ${
             draggedCategory === category.id ? "opacity-50 scale-95" : ""
           }`}
@@ -394,6 +406,7 @@ function handleEdit(product: Product) {
                   onDragEnd={(e) => {
                     setDraggedProduct(null);
                     e.currentTarget.classList.remove("cursor-grabbing");
+                    e.currentTarget.classList.remove("bg-blue-50");
                   }}
                   onDragOver={e => {
                     e.preventDefault();
@@ -402,7 +415,12 @@ function handleEdit(product: Product) {
                   onDragLeave={e => {
                     e.currentTarget.classList.remove("bg-blue-50");
                   }}
-                  onDrop={() => handleDropProduct(product.id, category.id)}
+                  onDrop={(e) => {
+                    e.preventDefault();
+                    e.currentTarget.classList.remove("bg-blue-50");
+                    setDraggedProduct(null);
+                    handleDropProduct(product.id, category.id);
+                  }}
                   className={`flex justify-between items-center border-b pb-2 cursor-move transition-all duration-200 ${
                     draggedProduct === product.id ? "opacity-50 scale-95" : ""
                   }`}
